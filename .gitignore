@@ -1,0 +1,7 @@
+# editor / OS noise
+.DS_Store
+Thumbs.db
+*.swp
+
+# local dev server config (machine-specific paths)
+.claude/

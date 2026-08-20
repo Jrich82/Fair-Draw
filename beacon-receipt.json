@@ -1,0 +1,22 @@
+{
+  "version": "fairdraw-2",
+  "drawId": "b86d2cf4dc88430d4f4bf0e56d836c6ed920dd16261f7dc43dca65a15170fdd5",
+  "commit": "977b75e052338c210142a975023233e0c91a25b5e112883cad6b8f0d790feda9",
+  "mode": "wheel",
+  "contestants": ["Ada","Bo","Cass","Dex","Eli","Frankie","Gus","Harper"],
+  "winnerCount": 1,
+  "alternates": 0,
+  "groupBy": "none",
+  "draws": 1,
+  "entropy": {
+    "source": "drand",
+    "chain": "52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971",
+    "round": 31459941
+  },
+  "clientSeed": "b5ce98a4ad3e1e6ba86b743b1eff8de4ac80aebccdc8b33b3adbf21f5e989c60",
+  "nonce": 0,
+  "winners": ["Bo"],
+  "standings": ["Bo"],
+  "serverSeed": "a5a938547950c045652d9db54fece3f0cc5142e749296b9148a5e918277238fe",
+  "drawnAt": "2026-08-19T23:46:44.581Z"
+}

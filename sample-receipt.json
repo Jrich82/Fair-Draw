@@ -1,0 +1,23 @@
+{
+  "version": "fairdraw-1",
+  "drawId": "4df52a6e2cb03dc8896c41448000156877f0af27a4126a46674b1e0a6a3db0dc",
+  "commit": "db41a3ee2468cdea7ee298ec87ec67f7c76aa22f47f8f12add25fe3b87820d10",
+  "mode": "rumble",
+  "contestants": [
+    "Ada",
+    "Bo",
+    "Cy",
+    "Dee",
+    "Eli",
+    "Fay"
+  ],
+  "winnerCount": 2,
+  "clientSeed": "btc-block-871402",
+  "nonce": 0,
+  "winners": [
+    "Eli",
+    "Fay"
+  ],
+  "serverSeed": "ebf30815d5329af8138a3101b7ffd342ec114a683f9cd3f9419157bd4269edba",
+  "drawnAt": "2026-08-16T20:35:45.698Z"
+}

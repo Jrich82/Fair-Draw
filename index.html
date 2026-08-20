@@ -1,0 +1,1770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FairDraw — provably fair winner picker</title>
+<style>
+:root{
+  --bg:#07080d; --panel:#10131c; --panel-2:#161a26; --line:#232a3a;
+  --ink:#e8ecf5; --dim:#8d97ad; --faint:#5c6577;
+  --cyan:#22e0d6; --mag:#ff3d81; --gold:#ffc84a; --good:#43d17a; --bad:#ff5c5c;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink); min-height:100vh;
+  font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background-image:
+    radial-gradient(900px 500px at 15% -10%, rgba(34,224,214,.10), transparent 60%),
+    radial-gradient(800px 500px at 88% 0%, rgba(255,61,129,.09), transparent 60%);
+  background-attachment:fixed;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 20px 80px}
+
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.logo{font-weight:800;font-size:24px;letter-spacing:.14em}
+.logo b{color:var(--cyan)} .logo i{color:var(--mag);font-style:normal}
+.tag{color:var(--faint);font-size:12.5px;letter-spacing:.05em}
+nav{margin-left:auto;display:flex;gap:6px;background:var(--panel);padding:5px;border-radius:11px;border:1px solid var(--line)}
+nav button{
+  background:none;border:0;color:var(--dim);font:600 13px/1 inherit;
+  padding:9px 15px;border-radius:7px;cursor:pointer;letter-spacing:.03em
+}
+nav button.on{background:var(--panel-2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+nav button:disabled{opacity:.35;cursor:not-allowed}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+.grid{display:grid;gap:16px}
+@media(min-width:900px){.cols{grid-template-columns:1fr 1fr}}
+h2{margin:0 0 4px;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan)}
+h3{margin:0 0 10px;font-size:15px}
+.hint{color:var(--faint);font-size:12.5px;margin:0 0 14px}
+label{display:block;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin:0 0 6px}
+textarea,input[type=text],input[type=number],select{
+  width:100%;background:#0b0e16;color:var(--ink);border:1px solid var(--line);
+  border-radius:9px;padding:10px 12px;font:14px/1.5 inherit;outline:none
+}
+textarea{resize:vertical;min-height:170px;font-family:var(--mono);font-size:13px}
+input:focus,textarea:focus{border-color:var(--cyan)}
+input:disabled,textarea:disabled{opacity:.55}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.row>div{flex:1;min-width:130px}
+
+.btn{
+  background:linear-gradient(180deg,#1c2233,#141926);color:var(--ink);
+  border:1px solid var(--line);border-radius:9px;padding:11px 18px;
+  font:700 13px/1 inherit;letter-spacing:.05em;cursor:pointer
+}
+.btn:hover{border-color:#33405a}
+.btn.primary{background:linear-gradient(180deg,#1ed6cc,#12a89f);color:#03110f;border-color:transparent}
+.btn.go{background:linear-gradient(180deg,#ff4f8c,#cf2a68);color:#fff;border-color:transparent}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.small{padding:8px 12px;font-size:12px}
+.btn.src.on{border-color:var(--cyan);color:var(--cyan)}
+.btn.vtab.on{border-color:var(--cyan);color:var(--cyan)}
+.opt{text-transform:none;color:var(--faint);letter-spacing:0;font-weight:400}
+input.mono{font-family:var(--mono);font-size:12.5px}
+.check.unknown .mark{color:var(--gold)}
+.verdict.warn{background:rgba(255,200,74,.12);border:1px solid #5d4a14;color:var(--gold)}
+
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.mode{
+  background:#0b0e16;border:1px solid var(--line);border-radius:11px;padding:12px;
+  cursor:pointer;text-align:left;color:var(--dim);transition:.15s
+}
+.mode .ico{font-size:22px;display:block;margin-bottom:6px}
+.mode strong{display:block;color:var(--ink);font-size:13.5px;margin-bottom:3px}
+.mode span.d{font-size:11.5px;line-height:1.4;display:block}
+.mode.on{border-color:var(--cyan);background:#0d1a1e;box-shadow:0 0 0 1px var(--cyan) inset}
+.mode:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:600px){
+  .modes{grid-template-columns:1fr}
+  .mode{display:flex;align-items:center;gap:11px}
+  .mode .ico{margin:0;font-size:19px}
+  nav{width:100%;margin-left:0}
+  nav button{flex:1;padding:9px 6px}
+}
+
+.mono{font-family:var(--mono);font-size:12px;word-break:break-all;line-height:1.6}
+.hash{background:#0b0e16;border:1px solid var(--line);border-radius:8px;padding:9px 11px;color:var(--gold)}
+.kv{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #1a2030;font-size:12.5px}
+.kv:last-child{border:0}
+.kv b{color:var(--dim);font-weight:600;min-width:96px;letter-spacing:.04em}
+.kv span{font-family:var(--mono);word-break:break-all;flex:1}
+
+.step{display:flex;gap:11px;align-items:baseline;margin:0 0 12px}
+.step .n{
+  width:22px;height:22px;flex:0 0 22px;border-radius:50%;background:var(--panel-2);
+  border:1px solid var(--line);color:var(--cyan);font:700 11px/21px var(--mono);text-align:center
+}
+.step.done .n{background:var(--cyan);color:#04120f;border-color:transparent}
+.step h3{margin:0}
+.locked-note{color:var(--good);font-size:12px;margin-top:8px}
+.warn{color:var(--gold);font-size:12.5px;background:#1a1608;border:1px solid #3d3210;border-radius:9px;padding:10px 12px;margin:12px 0}
+.err{color:var(--bad);font-size:12.5px;margin-top:8px}
+
+/* ---------- stage ---------- */
+.stagewrap{display:grid;gap:16px}
+@media(min-width:960px){.stagewrap{grid-template-columns:1.35fr 1fr}}
+.stage{
+  background:#090c14;border:1px solid var(--line);border-radius:14px;
+  min-height:560px;display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;padding:16px
+}
+.stage::before{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(600px 380px at 50% 40%, rgba(34,224,214,.07), transparent 70%);
+  pointer-events:none
+}
+.log{
+  background:#090c14;border:1px solid var(--line);border-radius:14px;padding:14px;
+  height:560px;overflow-y:auto;font-family:var(--mono);font-size:12.2px;line-height:1.65
+}
+.log div{padding:3px 0;border-bottom:1px solid #12172200;color:var(--dim)}
+.log .hl{color:var(--ink)}
+.log .rnd{color:var(--cyan);letter-spacing:.1em;margin-top:8px}
+.log .out{color:var(--mag)}
+.log .crit{color:var(--gold)}
+.log .win{color:var(--good);font-weight:700}
+
+.banner{
+  margin-top:16px;background:linear-gradient(90deg,rgba(34,224,214,.14),rgba(255,61,129,.12));
+  border:1px solid #2b3a4d;border-radius:14px;padding:18px 20px;display:none
+}
+.banner.show{display:block;animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+.banner .lbl{font-size:11.5px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
+.banner .who{font-size:30px;font-weight:800;letter-spacing:.01em;margin-top:2px}
+.banner ol{margin:10px 0 0;padding-left:20px;color:var(--dim);font-size:13px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.controls .sp{margin-left:auto;display:flex;gap:4px;align-items:center;color:var(--faint);font-size:12px}
+.controls .sp button{padding:5px 9px;font-size:11.5px}
+.controls .sp button.on{border-color:var(--cyan);color:var(--cyan)}
+
+/* ---------- rumble ---------- */
+.ring{position:relative;width:min(100%,440px);aspect-ratio:1/.82}
+.ring .mat{
+  position:absolute;inset:6% 4%;border-radius:14px;
+  background:linear-gradient(180deg,#141b2b,#0d1220);
+  border:3px solid #2a3550;
+  box-shadow:inset 0 0 60px rgba(0,0,0,.7)
+}
+.ring .rope{position:absolute;left:4%;right:4%;height:2px;background:linear-gradient(90deg,var(--mag),#7a2b4c);opacity:.65}
+.ring .rope.r1{top:6%} .ring .rope.r2{top:52%} .ring .rope.r3{top:98%}
+.chip{
+  position:absolute;transform:translate(-50%,-50%);
+  padding:7px 11px;border-radius:9px;font:700 12.5px/1 inherit;white-space:nowrap;
+  background:#131a29;border:1px solid var(--line);
+  transition:left .5s cubic-bezier(.3,1.1,.4,1),top .5s cubic-bezier(.3,1.1,.4,1),transform .5s,opacity .5s;
+  box-shadow:0 4px 14px rgba(0,0,0,.5)
+}
+.chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:baseline}
+.chip.entering{transform:translate(-50%,90px) scale(.5);opacity:0}
+.chip.hitting{animation:shove .34s ease}
+@keyframes shove{50%{transform:translate(-50%,-50%) scale(1.16)}}
+.chip.gone{transition:all .7s cubic-bezier(.4,0,.8,.4);opacity:0}
+.entrant-flash{
+  position:absolute;top:8px;left:50%;transform:translateX(-50%);
+  font:800 12px/1 inherit;letter-spacing:.22em;color:var(--gold);text-transform:uppercase;
+  opacity:0;transition:opacity .3s
+}
+.entrant-flash.on{opacity:1}
+
+/* ---------- rpg ---------- */
+.party{width:100%;display:grid;gap:9px;align-content:center}
+.fighter{position:relative;background:#0d1220;border:1px solid var(--line);border-radius:10px;padding:9px 12px;transition:.25s}
+.fighter .top{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.fighter .top .hpn{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+.bar{height:7px;background:#1a2030;border-radius:4px;margin-top:7px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--good),#8ee36f);transition:width .35s ease;border-radius:4px}
+.bar i.low{background:linear-gradient(90deg,#ff9d3d,var(--gold))}
+.bar i.crit{background:linear-gradient(90deg,#ff4747,#ff8a5c)}
+.fighter.atk{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan),0 0 22px rgba(34,224,214,.2)}
+.fighter.hit{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.fighter.dead{opacity:.3;filter:grayscale(1)}
+.fighter.dead .top{text-decoration:line-through}
+.float{
+  position:absolute;right:14px;top:4px;font:800 15px/1 var(--mono);color:var(--mag);
+  pointer-events:none;animation:rise 1s ease-out forwards
+}
+.float.crit{color:var(--gold);font-size:19px}
+.float.miss{color:var(--faint);font-size:13px}
+@keyframes rise{to{transform:translateY(-26px);opacity:0}}
+
+/* ---------- verify ---------- */
+.check{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-bottom:1px solid #1a2030}
+.check .mark{font:800 13px/1 var(--mono);width:20px;flex:0 0 20px;padding-top:2px}
+.check.ok .mark{color:var(--good)} .check.no .mark{color:var(--bad)}
+.check b{display:block;font-size:13.5px;margin-bottom:2px}
+.check span{font-size:12px;color:var(--faint);font-family:var(--mono);word-break:break-all}
+.verdict{border-radius:11px;padding:14px 16px;margin-bottom:14px;font-weight:800;letter-spacing:.06em;display:none}
+.verdict.show{display:block}
+.verdict.ok{background:rgba(67,209,122,.13);border:1px solid #245f3d;color:var(--good)}
+.verdict.no{background:rgba(255,92,92,.12);border:1px solid #6b2626;color:var(--bad)}
+details{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;color:var(--dim);font-size:13px}
+details p,details li{color:var(--dim);font-size:13px}
+code{font-family:var(--mono);font-size:12px;color:var(--gold);background:#0b0e16;padding:1px 5px;border-radius:4px}
+.hidden{display:none !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <div class="logo"><b>FAIR</b><i>DRAW</i></div>
+    <div class="tag">commit &rarr; reveal &rarr; anyone can recheck the result</div>
+  </div>
+  <nav>
+    <button id="tab-setup" class="on">1 &middot; Setup</button>
+    <button id="tab-draw">2 &middot; Draw</button>
+    <button id="tab-verify">3 &middot; Verify</button>
+  </nav>
+</header>
+
+<!-- ============================ SETUP ============================ -->
+<section id="p-setup">
+  <div class="grid cols">
+
+    <div class="panel">
+      <div class="step" id="s1"><div class="n">1</div><div><h3>Contestants &amp; game</h3></div></div>
+      <p class="hint">Order matters &mdash; it gets pinned into the commitment. One name per line.</p>
+
+      <div class="modes">
+        <button class="mode on" data-mode="wheel"><span class="ico">&#127920;</span><strong>Spinning Wheel</strong><span class="d">One uniform pick. Fast and obvious.</span></button>
+        <button class="mode" data-mode="rumble"><span class="ico">&#129354;</span><strong>Royal Rumble</strong><span class="d">Entrants brawl. Last one standing.</span></button>
+        <button class="mode" data-mode="rpg"><span class="ico">&#9876;&#65039;</span><strong>RPG Hit Points</strong><span class="d">60 HP each. Fight to the KO.</span></button>
+      </div>
+
+      <div style="display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap;align-items:center">
+        <button class="btn small src on" data-src="names">Names</button>
+        <button class="btn small src" data-src="numbers">Numbers</button>
+        <button class="btn small src" data-src="tickets">Tickets</button>
+        <label class="btn small" style="margin-left:auto;text-transform:none;letter-spacing:.05em;color:var(--dim);cursor:pointer;padding:8px 12px">
+          Import CSV
+          <input type="file" id="csv-file" accept=".csv,text/csv,text/plain" style="display:none">
+        </label>
+      </div>
+      <div class="warn hidden" id="csv-note" style="margin-top:0"></div>
+
+      <div id="src-numbers" class="hidden">
+        <label>Number range</label>
+        <div class="row">
+          <div><input type="number" id="numfrom" value="1"></div>
+          <div style="flex:0 0 auto;color:var(--faint);padding-bottom:10px">to</div>
+          <div><input type="number" id="numto" value="100"></div>
+        </div>
+        <div class="hint" id="numcount" style="margin-top:8px"></div>
+      </div>
+
+      <div id="src-tickets" class="hidden">
+        <label for="tickets">Entries <span class="opt">(one per line: name, how many)</span></label>
+        <textarea id="tickets" spellcheck="false">Ada, 5
+Bo, 3
+Cass, 1
+Dex, 1</textarea>
+        <div class="hint" id="tixcount" style="margin-top:8px"></div>
+        <label style="display:flex;align-items:center;gap:9px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink);margin-top:4px">
+          <input type="checkbox" id="oneper" checked style="width:auto;margin:0">
+          One prize per person
+        </label>
+        <div class="hint" style="margin-top:5px">Extra entries must be earned, never sold &mdash; paid odds turn a giveaway into a lottery.</div>
+      </div>
+
+      <div id="src-names">
+      <label for="names">Contestants</label>
+      <textarea id="names" spellcheck="false">Ada
+Bo
+Cass
+Dex
+Eli
+Frankie
+Gus
+Harper</textarea>
+      </div>
+
+      <div class="warn hidden" id="size-warn"></div>
+
+      <label style="margin-top:14px">Client seed comes from</label>
+      <div style="display:flex;gap:7px;margin-bottom:4px">
+        <button class="btn small seedsrc on" data-seedsrc="manual">The crowd</button>
+        <button class="btn small seedsrc" data-seedsrc="drand">Public beacon (drand)</button>
+      </div>
+      <div class="hint" id="seedsrc-note" style="margin-bottom:2px"></div>
+
+      <div class="row" style="margin-top:12px">
+        <div>
+          <label for="winners">Winners to pick</label>
+          <input type="number" id="winners" value="1" min="1" max="50">
+        </div>
+        <div>
+          <label for="alternates">Alternates <span class="opt">(backups)</span></label>
+          <input type="number" id="alternates" value="0" min="0" max="50">
+        </div>
+        <div>
+          <label for="draws">Draws <span class="opt">(from this commit)</span></label>
+          <input type="number" id="draws" value="1" min="1" max="100">
+        </div>
+        <div style="flex:0 0 auto">
+          <button class="btn primary" id="lock">Lock &amp; commit</button>
+        </div>
+      </div>
+      <div class="err" id="setup-err"></div>
+      <div class="locked-note hidden" id="locked-note">&#10003; Locked. Publish the block on the right before anyone picks a client seed.</div>
+      <button class="btn ghost small hidden" id="unlock" style="margin-top:10px">Start over (new commitment)</button>
+    </div>
+
+    <div class="panel">
+      <div class="step" id="s2"><div class="n">2</div><div><h3>Publish the commitment</h3></div></div>
+      <p class="hint">Post this <em>before</em> the client seed exists. It proves the server seed and roster were fixed in advance.</p>
+
+      <div id="commit-empty" class="hint" style="color:var(--faint)">Lock the roster to generate a commitment.</div>
+
+      <div id="commit-box" class="hidden">
+        <div class="kv"><b>Draw ID</b><span id="c-drawid" style="color:var(--cyan)"></span></div>
+        <div class="kv"><b>Commit</b><span id="c-commit" style="color:var(--gold)"></span></div>
+        <div class="kv"><b>Game</b><span id="c-mode"></span></div>
+        <div class="kv"><b>Winners</b><span id="c-count"></span></div>
+        <div class="kv"><b>Alternates</b><span id="c-alts"></span></div>
+        <div class="kv"><b>Rule</b><span id="c-group"></span></div>
+        <div class="kv"><b>Draws</b><span id="c-draws"></span></div>
+        <div class="kv"><b>Seed source</b><span id="c-entropy"></span></div>
+        <div class="kv"><b>Roster</b><span id="c-roster"></span></div>
+        <button class="btn small" id="copy-commit" style="margin-top:12px">Copy commitment block</button>
+
+        <div class="step" style="margin-top:22px"><div class="n">3</div><div><h3>Collect the client seed</h3></div></div>
+        <p class="hint">Anything the crowd chooses after seeing the block above &mdash; a shouted phrase, a future Bitcoin block hash, the sum of everyone's birthdays. You cannot predict it, so you cannot steer the result.</p>
+        <div id="seed-drand" class="hidden">
+          <div class="hint" style="margin-bottom:9px">
+            The seed will be <b>drand round <span id="drand-round">—</span></b>, pinned into the Draw ID
+            before that round exists. Nobody can know it in advance, including you.
+          </div>
+          <div class="row" style="margin-bottom:9px">
+            <div style="flex:0 0 auto"><button class="btn small" id="drand-fetch" disabled>Fetch the round</button></div>
+            <div style="color:var(--faint);font-size:12px;padding-bottom:10px" id="drand-status">—</div>
+          </div>
+          <div class="hash mono hidden" id="drand-value" style="margin-bottom:9px"></div>
+        </div>
+
+        <div id="seed-manual">
+          <label for="clientseed">Client seed</label>
+        </div>
+        <input type="text" id="clientseed" placeholder="e.g. block-921455 or pizza-friday" spellcheck="false">
+        <div class="row" style="margin-top:12px">
+          <div style="flex:0 0 auto"><label for="nonce">Nonce</label><input type="number" id="nonce" value="0" min="0" style="width:90px"></div>
+          <div style="flex:0 0 auto"><button class="btn go" id="run">Run the draw &rarr;</button></div>
+        </div>
+        <div class="err" id="run-err"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="panel" style="margin-top:16px">
+    <details open>
+      <summary><b style="color:var(--ink)">How the fairness works</b></summary>
+      <p>A 32-byte <b>server seed</b> is generated locally and immediately hashed. You publish <code>SHA-256(serverSeed)</code> — the commit — plus the roster, game and winner count, all squeezed into one <b>Draw ID</b>. At that point the outcome is already fixed but unknown to everyone, including you.</p>
+      <p>The crowd then supplies a <b>client seed</b>. Every random decision comes from
+        <code>HMAC-SHA256(serverSeed, clientSeed:nonce:blockIndex)</code>, read as a byte stream, with rejection sampling so there is no modulo bias.</p>
+      <p>After the draw you reveal the server seed. Anyone can hash it to check it matches the commit, then replay the exact same animation and get the exact same winner. Change one name, one character of either seed, or the game mode and the Draw ID or the replay stops matching.</p>
+      <p style="color:var(--faint)">Not covered: this proves <em>you didn't rig the number</em>. It does not prove the roster was complete or that the entrants are real people — publish the Draw ID somewhere timestamped and public for that.</p>
+    </details>
+  </div>
+</section>
+
+<!-- ============================ DRAW ============================ -->
+<section id="p-draw" class="hidden">
+  <div class="controls">
+    <button class="btn small" id="replay">&#8635; Replay animation</button>
+    <button class="btn small" id="skip">Skip to result</button>
+    <span class="sp">Speed
+      <button class="btn small" data-speed="0.5">0.5&times;</button>
+      <button class="btn small on" data-speed="1">1&times;</button>
+      <button class="btn small" data-speed="2">2&times;</button>
+      <button class="btn small" data-speed="4">4&times;</button>
+    </span>
+  </div>
+
+  <div class="stagewrap">
+    <div class="stage" id="stage"></div>
+    <div class="log" id="log"></div>
+  </div>
+
+  <div class="banner" id="banner">
+    <div class="lbl">Winner</div>
+    <div class="who" id="b-who"></div>
+    <ol id="b-rest"></ol>
+    <div class="row" style="margin-top:16px">
+      <div style="flex:0 0 auto"><button class="btn primary" id="reveal">Reveal server seed</button></div>
+      <div style="flex:0 0 auto"><button class="btn small" id="dl">Receipt (.json)</button></div>
+      <div style="flex:0 0 auto"><button class="btn small" id="dl-results">Results (.csv)</button></div>
+      <div style="flex:0 0 auto"><button class="btn small" id="dl-roster">Roster (.csv)</button></div>
+      <div style="flex:0 0 auto"><button class="btn small" id="tover">Verify this draw &rarr;</button></div>
+    </div>
+    <div id="revealed" class="hidden" style="margin-top:14px">
+      <div class="kv"><b>Server seed</b><span id="r-seed" style="color:var(--cyan)"></span></div>
+      <div class="kv"><b>Client seed</b><span id="r-client"></span></div>
+      <div class="kv"><b>Nonce</b><span id="r-nonce"></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VERIFY ============================ -->
+<section id="p-verify" class="hidden">
+  <div class="grid cols">
+    <div class="panel">
+      <h2>Independent check</h2>
+      <p class="hint">Nothing is sent anywhere — it is all recomputed inside this page. <code>verify.js</code> in this folder does the same from a terminal.</p>
+
+      <div style="display:flex;gap:7px;margin-bottom:15px">
+        <button class="btn small vtab on" data-vtab="fields">Fields</button>
+        <button class="btn small vtab" data-vtab="json">Paste receipt</button>
+      </div>
+
+      <div id="v-fields">
+        <label for="v-seed">Server seed <span class="opt">(revealed after the draw)</span></label>
+        <input type="text" id="v-seed" class="mono" spellcheck="false" placeholder="64 hex characters">
+
+        <div class="row" style="margin-top:11px">
+          <div><label for="v-client">Client seed</label><input type="text" id="v-client" spellcheck="false"></div>
+          <div style="flex:0 0 100px"><label for="v-nonce">Nonce</label><input type="number" id="v-nonce" value="0" min="0"></div>
+        </div>
+
+        <div class="row" style="margin-top:11px">
+          <div><label for="v-mode">Game</label><select id="v-mode">
+            <option value="wheel">Spinning Wheel</option>
+            <option value="rumble">Royal Rumble</option>
+            <option value="rpg">RPG Hit Points</option>
+          </select></div>
+          <div style="flex:0 0 92px"><label for="v-count">Winners</label><input type="number" id="v-count" value="1" min="1"></div>
+          <div style="flex:0 0 92px"><label for="v-alts">Alternates</label><input type="number" id="v-alts" value="0" min="0"></div>
+          <div style="flex:0 0 80px"><label for="v-draws">Draws</label><input type="number" id="v-draws" value="1" min="1"></div>
+        </div>
+
+        <label for="v-roster" style="margin-top:11px">Contestants <span class="opt">(one per line, or a range like 1-100)</span></label>
+        <textarea id="v-roster" spellcheck="false" style="min-height:104px"></textarea>
+
+        <label for="v-commit" style="margin-top:11px">Published commit <span class="opt">(optional)</span></label>
+        <input type="text" id="v-commit" class="mono" spellcheck="false" placeholder="from the commitment block">
+
+        <label for="v-drawid" style="margin-top:11px">Published Draw ID <span class="opt">(optional)</span></label>
+        <input type="text" id="v-drawid" class="mono" spellcheck="false" placeholder="from the commitment block">
+
+        <button class="btn primary" id="doverify-fields" style="margin-top:15px">Verify</button>
+      </div>
+
+      <div id="v-json" class="hidden">
+        <label for="receipt">Receipt JSON</label>
+        <textarea id="receipt" spellcheck="false" placeholder='{"mode":"wheel","commit":"...","serverSeed":"...","clientSeed":"...","nonce":0,"winnerCount":1,"contestants":["Ada","Bo"],"winners":["Ada"],"drawId":"..."}'></textarea>
+        <button class="btn primary" id="doverify" style="margin-top:12px">Verify</button>
+      </div>
+
+      <div class="err" id="v-err"></div>
+
+      <details style="margin-top:17px">
+        <summary>SHA-256 hasher</summary>
+        <p class="hint" style="margin-top:10px">Hash anything yourself. A server seed hashed here must equal the published commit — that is the whole commitment check, done by hand.</p>
+        <input type="text" id="hash-in" spellcheck="false" placeholder="paste a server seed, or any text">
+        <div class="hash mono" id="hash-out" style="margin-top:9px">&mdash;</div>
+      </details>
+    </div>
+
+    <div class="panel">
+      <h2>Result</h2>
+      <div class="verdict" id="verdict"></div>
+      <div id="checks"></div>
+      <div id="recomputed" class="hidden" style="margin-top:17px">
+        <div style="font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:6px">Recomputed here</div>
+        <div class="kv"><b>Commit</b><span id="rc-commit" style="color:var(--gold)"></span></div>
+        <div class="kv"><b>Draw ID</b><span id="rc-drawid" style="color:var(--cyan)"></span></div>
+        <div class="kv"><b>Winners</b><span id="rc-winners"></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script src="engine.js?v=2"></script>
+<script>
+(function () {
+'use strict';
+var F = window.FairDraw;
+var $ = function (id) { return document.getElementById(id); };
+
+/* ----------------------------- state ----------------------------- */
+var S = {
+  mode: 'wheel',
+  src: 'names',
+  groupBy: 'none',
+  draws: 1,
+  rosterSpec: null,
+  seedSource: 'manual',
+  entropy: null,
+  ticketHolders: [],
+  contestants: [],
+  winnerCount: 1,
+  alternates: 0,
+  serverSeed: null,
+  commit: null,
+  drawId: null,
+  locked: false,
+  result: null,
+  receipt: null,
+  speed: 1,
+  timers: [],
+  running: false
+};
+
+var MODE_NAMES = { wheel: 'Spinning Wheel', rumble: 'Royal Rumble', rpg: 'RPG Hit Points' };
+function hue(i) { return (i * 137.508) % 360; }
+function color(i) { return 'hsl(' + hue(i).toFixed(1) + ' 72% 62%)'; }
+
+/* ------------------------------ tabs ----------------------------- */
+var TABS = ['setup', 'draw', 'verify'];
+function show(name) {
+  TABS.forEach(function (t) {
+    $('p-' + t).classList.toggle('hidden', t !== name);
+    $('tab-' + t).classList.toggle('on', t === name);
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+TABS.forEach(function (t) { $('tab-' + t).onclick = function () { show(t); }; });
+
+/* ------------------------------ audio ---------------------------- */
+var AC = null;
+function blip(freq, dur, vol) {
+  try {
+    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    var o = AC.createOscillator(), g = AC.createGain();
+    o.type = 'square'; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol || 0.03, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + (dur || 0.05));
+    o.connect(g); g.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + (dur || 0.05));
+  } catch (e) { /* audio is decoration; never let it break a draw */ }
+}
+
+/* ------------------------------ setup ---------------------------- */
+Array.prototype.forEach.call(document.querySelectorAll('.mode'), function (b) {
+  b.onclick = function () {
+    if (S.locked) return;
+    S.mode = b.dataset.mode;
+    Array.prototype.forEach.call(document.querySelectorAll('.mode'), function (x) {
+      x.classList.toggle('on', x === b);
+    });
+    refreshSize();
+  };
+});
+
+Array.prototype.forEach.call(document.querySelectorAll('.seedsrc'), function (b) {
+  b.onclick = function () {
+    if (S.locked) return;
+    setSeedSource(b.dataset.seedsrc);
+  };
+});
+
+Array.prototype.forEach.call(document.querySelectorAll('.src'), function (b) {
+  b.onclick = function () {
+    if (S.locked) return;
+    S.src = b.dataset.src;
+    Array.prototype.forEach.call(document.querySelectorAll('.src'), function (x) {
+      x.classList.toggle('on', x === b);
+    });
+    $('src-names').classList.toggle('hidden', S.src !== 'names');
+    $('src-numbers').classList.toggle('hidden', S.src !== 'numbers');
+    $('src-tickets').classList.toggle('hidden', S.src !== 'tickets');
+    refreshSize();
+  };
+});
+
+['names', 'numfrom', 'numto', 'tickets'].forEach(function (id) { $(id).oninput = refreshSize; });
+$('oneper').onchange = refreshSize;
+
+var MAX_ENTRIES = 200000;
+var WHEEL_MAX = 360;   // past 1 degree per slice the wheel stops showing entrants
+
+/* "Ada, 5" -> 5 tickets for Ada. A bare name means one entry. */
+function readTicketEntries() {
+  var out = [];
+  $('tickets').value.split(/\r?\n/).forEach(function (line) {
+    var t = line.trim();
+    if (!t) return;
+    var m = t.match(/^(.*?)\s*[,x]\s*(\d+)\s*$/i);
+    if (m) out.push({ holder: m[1].trim(), entries: parseInt(m[2], 10) });
+    else out.push({ holder: t, entries: 1 });
+  });
+  return out.filter(function (e) { return e.holder.length && e.entries > 0; });
+}
+
+function readNames() {
+  if (S.src === 'tickets') {
+    var entries = readTicketEntries();
+    var total = entries.reduce(function (a, e) { return a + e.entries; }, 0);
+    if (!entries.length || total > MAX_ENTRIES) return [];
+    try { return F.makeTickets(entries); } catch (e) { return []; }
+  }
+  if (S.src === 'numbers') {
+    var a = parseInt($('numfrom').value, 10);
+    var b = parseInt($('numto').value, 10);
+    if (!isFinite(a) || !isFinite(b)) return [];
+    if (b < a) { var t = a; a = b; b = t; }
+    if (b - a + 1 > MAX_ENTRIES) return [];
+    var out = [];
+    for (var i = a; i <= b; i++) out.push(String(i));
+    return out;
+  }
+  return $('names').value.split('\n').map(function (s) { return s.trim(); })
+    .filter(function (s) { return s.length; });
+}
+
+/* How long the timeline-driven modes take, so 1-100 in Royal Rumble doesn't
+   silently become a 3-minute animation with no warning. */
+function estimateSeconds(n) {
+  if (S.mode === 'rumble') return (n * 0.9 + (n - 1) * 1.0);
+  if (S.mode === 'rpg') return n * 2.6;
+  return 6;
+}
+
+function refreshSize() {
+  var n = readNames().length;
+  if (S.src === 'tickets') {
+    var es = readTicketEntries();
+    var tot = es.reduce(function (a, e) { return a + e.entries; }, 0);
+    $('tixcount').textContent = es.length
+      ? es.length + ' people, ' + tot.toLocaleString() + ' tickets' +
+        (tot > MAX_ENTRIES ? ' — over the ' + MAX_ENTRIES.toLocaleString() + ' cap' : '')
+      : '';
+  }
+  if (S.src === 'numbers') {
+    var a = parseInt($('numfrom').value, 10), b = parseInt($('numto').value, 10);
+    var span = (isFinite(a) && isFinite(b)) ? Math.abs(b - a) + 1 : 0;
+    $('numcount').textContent = span > MAX_ENTRIES
+      ? span.toLocaleString() + ' entries — too many, cap is ' + MAX_ENTRIES.toLocaleString()
+      : span + ' entries' + (span ? ' (' + Math.min(a, b) + '…' + Math.max(a, b) + ')' : '');
+  }
+  var w = $('size-warn');
+  if (!n) { w.classList.add('hidden'); return; }
+  var secs = estimateSeconds(n);
+  if (S.mode !== 'wheel' && n > 24) {
+    w.classList.remove('hidden');
+    w.textContent = n + ' entrants in ' + MODE_NAMES[S.mode] + ' plays for roughly ' +
+      Math.round(secs / 60) + ' min at 1× (' + Math.round(secs / 4) + 's at 4×). ' +
+      'The wheel handles big fields far better — the battle modes are built for small casts.';
+  } else if (S.mode === 'wheel' && n > WHEEL_MAX) {
+    w.classList.remove('hidden');
+    w.textContent = n.toLocaleString() + ' entries is past what a wheel can honestly show ' +
+      '(under 1° per slice), so this draw rolls a ticket odometer instead. Same draw, same proof.';
+  } else if (S.mode === 'wheel' && n > 60) {
+    w.classList.remove('hidden');
+    w.textContent = n + ' slices is past the point where labels fit on the wheel. ' +
+      'It still draws and the result is still exact — only the winning entry is labelled.';
+  } else {
+    w.classList.add('hidden');
+  }
+}
+
+$('lock').onclick = function () {
+  var names = readNames();
+  $('setup-err').textContent = '';
+  if (S.src === 'numbers' && !names.length) {
+    $('setup-err').textContent = 'Enter a valid range (at most ' + MAX_ENTRIES.toLocaleString() + ' numbers).';
+    return;
+  }
+  if (names.length < 2) { $('setup-err').textContent = 'Need at least 2 contestants.'; return; }
+  var seen = {}, dupe = null;
+  names.forEach(function (n) { if (seen[n]) dupe = n; seen[n] = 1; });
+  if (dupe) { $('setup-err').textContent = 'Duplicate name: "' + dupe + '". Make each entry unique.'; return; }
+
+  var count = Math.max(1, Math.min(parseInt($('winners').value, 10) || 1, names.length - 1));
+  $('winners').value = count;
+  var alts = Math.max(0, Math.min(parseInt($('alternates').value, 10) || 0, names.length - count));
+  $('alternates').value = alts;
+
+  S.contestants = names;
+  S.winnerCount = count;
+  S.alternates = alts;
+  S.groupBy = (S.src === 'tickets' && $('oneper').checked) ? 'holder' : 'none';
+  S.draws = Math.max(1, parseInt($('draws').value, 10) || 1);
+  $('draws').value = S.draws;
+  // Aim ~90s ahead: long enough that the round cannot already be known,
+  // short enough that nobody is standing around waiting for it.
+  S.entropy = { source: 'drand', chain: F.DRAND.chain,
+                round: F.drandRoundAt(Math.floor(Date.now() / 1000) + 90) };
+  // A numeric range commits as "range:1-10000" instead of its expansion, so
+  // the commitment stays readable and the receipt stays small.
+  if (S.src === 'numbers') {
+    var lo = Math.min(parseInt($('numfrom').value, 10), parseInt($('numto').value, 10));
+    var hi = Math.max(parseInt($('numfrom').value, 10), parseInt($('numto').value, 10));
+    S.rosterSpec = { kind: 'range', from: lo, to: hi };
+  } else if (S.src === 'tickets') {
+    // One record per person rather than per ticket: 50,000 tickets commit in
+    // about 36 KB instead of 786 KB, and the mapping stays pinned.
+    S.rosterSpec = { kind: 'tickets', entries: readTicketEntries() };
+  } else {
+    S.rosterSpec = null;
+  }
+  S.serverSeed = F.randomSeedHex();
+  S.commit = F.sha256Hex(S.serverSeed);
+  S.drawId = F.drawId(S.commit, S.mode, S.winnerCount, S.rosterSpec || S.contestants, S.alternates, 'fairdraw-2', S.groupBy, S.draws,
+    S.seedSource === 'drand' ? S.entropy : { source: 'manual' });
+  S.locked = true;
+
+  $('names').disabled = true;
+  $('winners').disabled = true;
+  $('alternates').disabled = true;
+  $('draws').disabled = true;
+  Array.prototype.forEach.call(document.querySelectorAll('.seedsrc'), function (x) { x.disabled = true; });
+  $('tickets').disabled = true;
+  $('oneper').disabled = true;
+  $('numfrom').disabled = true;
+  $('numto').disabled = true;
+  Array.prototype.forEach.call(document.querySelectorAll('.mode,.src'), function (x) { x.disabled = true; });
+  $('lock').classList.add('hidden');
+  $('unlock').classList.remove('hidden');
+  $('locked-note').classList.remove('hidden');
+  $('s1').classList.add('done');
+  $('s2').classList.add('done');
+
+  $('c-drawid').textContent = S.drawId;
+  $('c-commit').textContent = S.commit;
+  $('c-mode').textContent = MODE_NAMES[S.mode];
+  $('c-count').textContent = S.winnerCount;
+  $('c-alts').textContent = S.alternates;
+  $('c-group').textContent = S.groupBy === 'holder' ? 'one prize per person' : 'every entry independent';
+  $('c-draws').textContent = S.draws + (S.draws === 1 ? '  (one draw only)' : '  (nonces 0…' + (S.draws - 1) + ')');
+  $('c-entropy').textContent = S.seedSource === 'drand'
+    ? 'drand round ' + S.entropy.round.toLocaleString() + '  (not yet published)'
+    : 'chosen by the crowd after this block is published';
+  setSeedSource(S.seedSource);
+  if (S.rosterSpec && S.rosterSpec.kind === 'range') {
+    $('c-roster').textContent = 'range:' + S.rosterSpec.from + '-' + S.rosterSpec.to +
+      '  (' + S.contestants.length.toLocaleString() + ' entries)';
+  } else if (S.rosterSpec && S.rosterSpec.kind === 'tickets') {
+    var ppl = S.rosterSpec.entries;
+    $('c-roster').textContent = ppl.map(function (e) { return e.holder + ' x' + e.entries; })
+      .slice(0, 30).join(' · ') + (ppl.length > 30 ? '  … +' + (ppl.length - 30) + ' more' : '') +
+      '   (' + ppl.length.toLocaleString() + ' people, ' + S.contestants.length.toLocaleString() + ' tickets)';
+  } else {
+    $('c-roster').textContent = S.contestants.join(' · ');
+  }
+  $('commit-empty').classList.add('hidden');
+  $('commit-box').classList.remove('hidden');
+  $('clientseed').focus();
+};
+
+$('unlock').onclick = function () {
+  S.locked = false; S.serverSeed = null; S.commit = null; S.result = null; S.receipt = null;
+  $('names').disabled = false;
+  $('winners').disabled = false;
+  $('alternates').disabled = false;
+  $('draws').disabled = false;
+  Array.prototype.forEach.call(document.querySelectorAll('.seedsrc'), function (x) { x.disabled = false; });
+  $('tickets').disabled = false;
+  $('oneper').disabled = false;
+  $('numfrom').disabled = false;
+  $('numto').disabled = false;
+  Array.prototype.forEach.call(document.querySelectorAll('.mode,.src'), function (x) { x.disabled = false; });
+  $('run').disabled = false;
+  $('run-err').style.color = '';
+  $('run-err').textContent = '';
+  $('lock').classList.remove('hidden');
+  $('unlock').classList.add('hidden');
+  $('locked-note').classList.add('hidden');
+  $('commit-box').classList.add('hidden');
+  $('commit-empty').classList.remove('hidden');
+  $('s1').classList.remove('done'); $('s2').classList.remove('done');
+  $('nonce').value = 0;
+  $('banner').classList.remove('show');
+};
+
+$('copy-commit').onclick = function () {
+  var text = [
+    'FAIRDRAW COMMITMENT',
+    'Draw ID : ' + S.drawId,
+    'Commit  : ' + S.commit + '   (= SHA-256 of the hidden server seed)',
+    'Game    : ' + MODE_NAMES[S.mode],
+    'Winners : ' + S.winnerCount,
+    'Alts    : ' + S.alternates + '  (ranked backups, fixed now)',
+    'Rule    : ' + (S.groupBy === 'holder' ? 'one prize per person' : 'every entry independent'),
+    'Draws   : ' + S.draws + '  (every one of these will be published)',
+    'Seed    : ' + (S.seedSource === 'drand'
+      ? 'drand round ' + S.entropy.round + ' (chain ' + F.DRAND.chain.slice(0, 16) + '…), not yet published'
+      : 'to be chosen by the entrants, after this block'),
+    'Roster  : ' + S.contestants.join(', '),
+    '',
+    'The client seed will be chosen by the entrants AFTER this is published.',
+    'The server seed is revealed once the draw is done, so anyone can recheck it.'
+  ].join('\n');
+  function done(msg) {
+    $('copy-commit').textContent = msg;
+    setTimeout(function () { $('copy-commit').textContent = 'Copy commitment block'; }, 1900);
+  }
+  // navigator.clipboard is unavailable on file:// (not a secure context), which
+  // is the main way this page gets opened — fall back to a selectable textarea.
+  function fallback() {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    ta.remove();
+    if (ok) done('Copied ✓');
+    else { window.prompt('Copy the commitment block:', text); done('Copy commitment block'); }
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () { done('Copied ✓'); }, fallback);
+  } else fallback();
+};
+
+/* --------------------------- drand beacon -------------------------- *
+ * The client seed either gets typed by a person, or comes from a future
+ * drand round pinned at commit time. The second is strictly stronger:
+ * a seed nobody can predict cannot be ground against.
+ *
+ * We cross-check several independent mirrors rather than verifying the
+ * BLS signature, which would need pairing crypto and would cost the
+ * engine its zero-dependency property. That is a real, stated limit --
+ * see the note rendered under the countdown.
+ */
+var DRAND_MIRRORS = [
+  'https://api.drand.sh',
+  'https://api2.drand.sh',
+  'https://api3.drand.sh',
+  'https://drand.cloudflare.com'
+];
+
+function drandUrl(base, round) {
+  return base + '/' + F.DRAND.chain + '/public/' + round;
+}
+
+/** Fetch one round from every mirror. Resolves with agreement info. */
+function fetchDrandRound(round) {
+  return Promise.all(DRAND_MIRRORS.map(function (m) {
+    return fetch(drandUrl(m, round), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { return j && j.round === round ? { mirror: m, randomness: j.randomness } : null; })
+      .catch(function () { return null; });
+  })).then(function (results) {
+    var got = results.filter(Boolean);
+    if (!got.length) return { ok: false, reason: 'no mirror answered' };
+    var values = {};
+    got.forEach(function (g) { values[g.randomness] = (values[g.randomness] || 0) + 1; });
+    var distinct = Object.keys(values);
+    if (distinct.length > 1) {
+      return { ok: false, reason: 'mirrors disagree about round ' + round, mirrors: got.length };
+    }
+    return { ok: true, randomness: distinct[0], mirrors: got.length, asked: DRAND_MIRRORS.length };
+  });
+}
+
+var drandTimer = null;
+
+function setSeedSource(src) {
+  S.seedSource = src;
+  Array.prototype.forEach.call(document.querySelectorAll('.seedsrc'), function (x) {
+    x.classList.toggle('on', x.dataset.seedsrc === src);
+  });
+  $('seed-manual').classList.toggle('hidden', src !== 'manual');
+  $('seed-drand').classList.toggle('hidden', src !== 'drand');
+  $('clientseed').readOnly = (src === 'drand');
+  $('seedsrc-note').textContent = src === 'drand'
+    ? 'A future drand round, pinned into the Draw ID before it exists. Nobody can know it in advance — not even you. Needs internet at draw time.'
+    : 'Anything the entrants choose after seeing the commitment. Works entirely offline.';
+  if (drandTimer) { clearInterval(drandTimer); drandTimer = null; }
+  if (src === 'drand' && S.locked) startDrandCountdown();
+}
+
+function startDrandCountdown() {
+  if (!S.entropy || S.entropy.source !== 'drand') return;
+  var round = S.entropy.round;
+  var readyAt = F.drandRoundTime(round) * 1000;
+  $('drand-round').textContent = round.toLocaleString();
+
+  function tick() {
+    var left = Math.ceil((readyAt - Date.now()) / 1000);
+    if (left > 0) {
+      $('drand-status').textContent = 'round ' + round.toLocaleString() + ' is published in ' + left + 's';
+      $('drand-fetch').disabled = true;
+      return;
+    }
+    $('drand-status').textContent = 'round ' + round.toLocaleString() + ' has been published';
+    $('drand-fetch').disabled = false;
+    if (drandTimer) { clearInterval(drandTimer); drandTimer = null; }
+  }
+  tick();
+  drandTimer = setInterval(tick, 1000);
+}
+
+$('drand-fetch').onclick = function () {
+  var round = S.entropy && S.entropy.round;
+  if (!round) return;
+  $('drand-fetch').disabled = true;
+  $('drand-status').textContent = 'asking ' + DRAND_MIRRORS.length + ' independent mirrors…';
+  fetchDrandRound(round).then(function (res) {
+    if (!res.ok) {
+      $('drand-status').textContent = 'could not settle round ' + round + ': ' + res.reason;
+      $('drand-fetch').disabled = false;
+      return;
+    }
+    $('clientseed').value = res.randomness;
+    $('drand-status').textContent = res.mirrors + ' of ' + res.asked +
+      ' mirrors agree — client seed is now drand round ' + round.toLocaleString();
+    $('drand-value').textContent = res.randomness;
+    $('drand-value').classList.remove('hidden');
+  });
+};
+
+$('run').onclick = function () {
+  $('run-err').textContent = '';
+  var cs = $('clientseed').value.trim();
+  if (!cs) { $('run-err').textContent = 'Enter the client seed the crowd picked.'; return; }
+  var nonce = parseInt($('nonce').value, 10) || 0;
+
+  var res;
+  try {
+    res = F.run({
+      mode: S.mode, contestants: S.contestants, serverSeed: S.serverSeed,
+      clientSeed: cs, nonce: nonce, winnerCount: S.winnerCount, alternates: S.alternates, groupBy: S.groupBy, draws: S.draws
+    });
+  } catch (e) { $('run-err').textContent = String(e.message || e); return; }
+
+  S.result = res;
+  S.receipt = {
+    version: 'fairdraw-2',
+    drawId: S.drawId,
+    commit: S.commit,
+    mode: S.mode,
+    contestants: S.rosterSpec ? undefined : S.contestants,
+    roster: S.rosterSpec || undefined,
+    winnerCount: S.winnerCount,
+    alternates: S.alternates,
+    groupBy: S.groupBy,
+    draws: S.draws,
+    entropy: S.seedSource === 'drand' ? S.entropy : { source: 'manual' },
+    clientSeed: cs,
+    nonce: nonce,
+    winners: res.winners,
+    standings: res.standings,
+    serverSeed: null,
+    drawnAt: new Date().toISOString()
+  };
+  $('nonce').value = nonce + 1;
+  if (nonce + 1 >= S.draws) {
+    $('run').disabled = true;
+    $('run-err').style.color = 'var(--good)';
+    $('run-err').textContent = 'All ' + S.draws + ' draw' + (S.draws === 1 ? '' : 's') +
+      ' this commitment authorises are done. Publish every receipt.';
+  }
+  show('draw');
+  play();
+};
+
+/* ------------------------------- log ----------------------------- */
+function logLine(text, cls) {
+  var d = document.createElement('div');
+  d.className = cls || '';
+  d.textContent = text;
+  $('log').appendChild(d);
+  $('log').scrollTop = $('log').scrollHeight;
+}
+
+function clearTimers() { S.timers.forEach(clearTimeout); S.timers = []; }
+function at(ms, fn) { S.timers.push(setTimeout(fn, ms / S.speed)); }
+
+Array.prototype.forEach.call(document.querySelectorAll('[data-speed]'), function (b) {
+  b.onclick = function () {
+    S.speed = parseFloat(b.dataset.speed);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-speed]'), function (x) {
+      x.classList.toggle('on', x === b);
+    });
+  };
+});
+$('replay').onclick = function () { if (S.result) play(); };
+$('skip').onclick = function () { if (S.result) { clearTimers(); finish(); } };
+
+function play() {
+  clearTimers();
+  $('log').innerHTML = '';
+  $('banner').classList.remove('show');
+  $('revealed').classList.add('hidden');
+  $('stage').innerHTML = '';
+  logLine('client seed  ' + S.receipt.clientSeed, 'hl');
+  logLine('nonce        ' + S.receipt.nonce, 'hl');
+  logLine('commit       ' + S.commit.slice(0, 24) + '…');
+  logLine('');
+  if (S.mode === 'wheel') { if (S.contestants.length > WHEEL_MAX) playOdometer(); else playWheel(); }
+  else if (S.mode === 'rumble') playRumble();
+  else playRpg();
+}
+
+function finish() {
+  var w = S.result.winners;
+  $('b-who').textContent = w[0];
+  $('b-rest').innerHTML = '';
+  var ranked = S.result.standings || w;
+  ranked.slice(1).forEach(function (name, i) {
+    var place = i + 2;
+    var li = document.createElement('li');
+    if (place <= S.winnerCount) {
+      li.textContent = name;
+    } else {
+      li.textContent = name;
+      li.style.color = 'var(--faint)';
+      var tag = document.createElement('span');
+      tag.textContent = '  alternate ' + (place - S.winnerCount);
+      tag.style.cssText = 'color:var(--gold);font-size:11.5px;letter-spacing:.08em';
+      li.appendChild(tag);
+    }
+    $('b-rest').appendChild(li);
+  });
+  $('banner').classList.add('show');
+  logLine('');
+  logLine('★ WINNER: ' + w[0], 'win');
+  if (w.length > 1) logLine('also winning: ' + w.slice(1).join(', '), 'win');
+  var alts = (S.result.standings || []).slice(S.winnerCount);
+  if (alts.length) logLine('alternates, in order: ' + alts.join(', '), 'crit');
+  blip(660, .1, .05); at(120, function () { blip(880, .16, .05); });
+}
+
+/* --------------------------- mode: wheel -------------------------- */
+function playWheel() {
+  var host = document.createElement('div');
+  host.style.cssText = 'position:relative;display:flex;flex-direction:column;align-items:center;gap:14px';
+  var cv = document.createElement('canvas');
+  // Size to the stage rather than a fixed 400px, so the wheel is as big as
+  // the space allows on a laptop or a stream overlay.
+  var box = $('stage').getBoundingClientRect();
+  var SZ = Math.max(320, Math.min(560, Math.floor(Math.min(box.width - 40, box.height - 70))));
+  var dpr = window.devicePixelRatio || 1;
+  cv.width = SZ * dpr; cv.height = SZ * dpr;
+  cv.style.cssText = 'width:' + SZ + 'px;height:' + SZ + 'px;max-width:100%';
+  var cap = document.createElement('div');
+  cap.style.cssText = 'font:700 12px/1 var(--mono);letter-spacing:.18em;color:var(--dim);text-transform:uppercase';
+  host.appendChild(cv); host.appendChild(cap);
+  $('stage').appendChild(host);
+  var ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  var spins = S.result.events.filter(function (e) { return e.type === 'spin'; });
+
+  function render(pool, rot, flash) {
+    var c = SZ / 2, R = SZ / 2 - 22, n = pool.length, a = Math.PI * 2 / n;
+    ctx.clearRect(0, 0, SZ, SZ);
+    ctx.save(); ctx.translate(c, c); ctx.rotate(rot);
+    for (var i = 0; i < n; i++) {
+      var start = i * a;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, start, start + a); ctx.closePath();
+      var h = hue(pool[i].__i);
+      ctx.fillStyle = 'hsl(' + h.toFixed(1) + ' ' + (flash === i ? '85%' : '62%') + ' ' + (flash === i ? '62%' : (i % 2 ? '46%' : '38%')) + ')';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = n > 60 ? 0.5 : 1.5; ctx.stroke();
+
+      // Past ~60 slices there is no room for text; only the landed slice gets
+      // a label. The draw itself is unaffected, this is purely legibility.
+      if (n > 60 && i !== flash) continue;
+
+      ctx.save(); ctx.rotate(start + a / 2);
+      ctx.fillStyle = '#080c12';
+      ctx.font = '700 ' + Math.max(10, Math.min(16, 190 / n + 7)) + 'px ui-sans-serif,system-ui,sans-serif';
+      ctx.textBaseline = 'middle';
+      var label = pool[i].name.length > 14 ? pool[i].name.slice(0, 13) + '…' : pool[i].name;
+      // Keep every name upright: flip the ones swept onto the left half.
+      var abs = (rot + start + a / 2) % (Math.PI * 2);
+      if (abs < 0) abs += Math.PI * 2;
+      if (abs > Math.PI / 2 && abs < Math.PI * 1.5) {
+        ctx.rotate(Math.PI);
+        ctx.textAlign = 'left';
+        ctx.fillText(label, -(R - 12), 0);
+      } else {
+        ctx.textAlign = 'right';
+        ctx.fillText(label, R - 12, 0);
+      }
+      ctx.restore();
+    }
+    // outline the winning wedge once the wheel has settled
+    if (flash >= 0) {
+      var fa = flash * a;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, fa, fa + a); ctx.closePath();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+      ctx.shadowColor = '#ffc84a'; ctx.shadowBlur = 18;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    ctx.restore();
+
+    // rim
+    ctx.beginPath(); ctx.arc(c, c, SZ / 2 - 22, 0, Math.PI * 2);
+    ctx.strokeStyle = '#2a3550'; ctx.lineWidth = 4; ctx.stroke();
+    // hub — on a crowded wheel the winning slice is too thin to read, so the
+    // result is repeated in the middle where it is legible.
+    var bigResult = flash >= 0 && n > 24;
+    var hubR = bigResult ? 44 : 26;
+    ctx.beginPath(); ctx.arc(c, c, hubR, 0, Math.PI * 2);
+    ctx.fillStyle = '#0b0e16'; ctx.fill();
+    ctx.strokeStyle = '#22e0d6'; ctx.lineWidth = 2; ctx.stroke();
+    if (bigResult) {
+      var res = pool[flash].name;
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '800 ' + (res.length > 4 ? 20 : 30) + 'px ui-sans-serif,system-ui,sans-serif';
+      ctx.fillText(res.length > 7 ? res.slice(0, 6) + '…' : res, c, c);
+    }
+    // pointer
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
+    ctx.beginPath(); ctx.moveTo(c, 34); ctx.lineTo(c - 17, -6); ctx.lineTo(c + 17, -6);
+    ctx.closePath(); ctx.fillStyle = '#ff3d81'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(c, 27); ctx.lineTo(c - 11, 1); ctx.lineTo(c + 11, 1);
+    ctx.closePath(); ctx.fillStyle = '#ffc84a'; ctx.fill();
+    ctx.restore();
+  }
+
+  // The engine no longer ships a pool snapshot per spin (O(N^2) memory at
+  // scale), so rebuild it here: the wheel for spin k is the roster minus the
+  // names already drawn, in the original committed order.
+  var remaining = S.contestants.map(function (name, i) { return { name: name, __i: i }; });
+
+  function spinOne(k) {
+    if (k >= spins.length) { at(400, finish); return; }
+    var ev = spins[k];
+    var pool = remaining;
+    var isAlt = (k + 1) > S.winnerCount;
+    cap.textContent = spins.length > 1
+      ? (isAlt ? 'alternate ' + (k + 1 - S.winnerCount) + ' of ' + (spins.length - S.winnerCount)
+               : 'winner ' + (k + 1) + ' of ' + S.winnerCount)
+      : (pool.length + ' entries');
+
+    var n = pool.length, a = Math.PI * 2 / n;
+    var jitter = a * 0.3 * (((ev.index % 5) / 4) - 0.5);
+    var turns = 6 + (ev.index % 3);
+    var target = -Math.PI / 2 - (ev.index * a + a / 2) + jitter + Math.PI * 2 * turns;
+    var dur = 5200, t0 = null, lastSeg = -1;
+
+    function frame(ts) {
+      if (t0 === null) t0 = ts;
+      var t = Math.min(1, ((ts - t0) * S.speed) / dur);
+      var eased = 1 - Math.pow(1 - t, 5);
+      var rot = target * eased;
+      var seg = Math.floor((((-Math.PI / 2 - rot) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / a);
+      if (seg !== lastSeg) { lastSeg = seg; if (t < 0.985) blip(1400 - 700 * t, .018, .018); }
+      render(pool, rot, t >= 1 ? ev.index : -1);
+      if (t < 1) requestAnimationFrame(frame);
+      else {
+        logLine((isAlt ? 'alt ' + (k + 1 - S.winnerCount) : 'pick ' + (k + 1)) + ' → ' + ev.winner +
+          '  (slot ' + (ev.index + 1) + '/' + n + ')', isAlt ? '' : 'hl');
+        remaining = remaining.filter(function (p) { return p.name !== ev.winner; });
+        blip(760, .12, .05);
+        at(1100, function () { spinOne(k + 1); });
+      }
+    }
+    render(pool, 0, -1);
+    at(500, function () { requestAnimationFrame(frame); });
+  }
+  spinOne(0);
+}
+
+
+/* ------------------------- mode: odometer ------------------------- *
+ * For fields too large for a wheel. Rolls to the winning entry's
+ * position in the committed roster, then names the holder. Its
+ * legibility does not decay with N, which is the whole point.
+ * The blur of digits while rolling is cosmetic only (Math.random) —
+ * the value it lands on came from the committed byte stream.
+ */
+function playOdometer() {
+  var spins = S.result.events.filter(function (e) { return e.type === 'spin'; });
+  var host = document.createElement('div');
+  host.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:18px;width:100%';
+  var cap = document.createElement('div');
+  cap.style.cssText = 'font:700 12px/1 var(--mono);letter-spacing:.18em;color:var(--dim);text-transform:uppercase';
+  var reel = document.createElement('div');
+  reel.style.cssText = 'display:flex;gap:7px';
+  var name = document.createElement('div');
+  name.style.cssText = 'font:800 26px/1.2 ui-sans-serif,system-ui,sans-serif;text-align:center;min-height:32px;opacity:0;transition:opacity .35s';
+  var total = document.createElement('div');
+  total.style.cssText = 'font:12px/1 var(--mono);color:var(--faint);letter-spacing:.1em';
+  total.textContent = 'of ' + S.contestants.length.toLocaleString() + ' entries';
+  host.appendChild(cap); host.appendChild(reel); host.appendChild(name); host.appendChild(total);
+  $('stage').appendChild(host);
+
+  var digits = String(S.contestants.length).length;
+
+  function setReel(str) {
+    reel.innerHTML = '';
+    var padded = String(str).padStart(digits, '0');
+    for (var i = 0; i < padded.length; i++) {
+      var d = document.createElement('div');
+      d.textContent = padded[i];
+      d.style.cssText =
+        'width:46px;height:66px;display:flex;align-items:center;justify-content:center;' +
+        'font:800 36px/1 var(--mono);background:#0b0e16;border:1px solid var(--line);' +
+        'border-radius:9px;color:var(--ink)';
+      reel.appendChild(d);
+    }
+    return reel.children;
+  }
+
+  function rollOne(k) {
+    if (k >= spins.length) { at(500, finish); return; }
+    var ev = spins[k];
+    var isAlt = (k + 1) > S.winnerCount;
+    cap.textContent = spins.length > 1
+      ? (isAlt ? 'alternate ' + (k + 1 - S.winnerCount) : 'winner ' + (k + 1) + ' of ' + S.winnerCount)
+      : 'drawing';
+    name.style.opacity = '0';
+
+    // The drawn entry's 1-based position in the committed roster.
+    var pos = S.contestants.indexOf(ev.winner) + 1;
+    var finalStr = String(pos).padStart(digits, '0');
+    var cells = setReel('0'.repeat(digits));
+    var locked = 0;
+    var perDigit = 620;
+
+    var iv = setInterval(function () {
+      for (var i = locked; i < digits; i++) {
+        cells[i].textContent = String(Math.floor(Math.random() * 10));
+      }
+    }, 45 / S.speed);
+
+    function lockNext() {
+      if (locked >= digits) {
+        clearInterval(iv);
+        for (var i = 0; i < digits; i++) cells[i].style.color = 'var(--gold)';
+        name.textContent = ev.winner;
+        name.style.opacity = '1';
+        logLine((isAlt ? 'alt ' + (k + 1 - S.winnerCount) : 'pick ' + (k + 1)) +
+          ' → ' + ev.winner + '  (entry ' + pos.toLocaleString() + ')', isAlt ? '' : 'hl');
+        blip(760, .12, .05);
+        at(1200, function () { rollOne(k + 1); });
+        return;
+      }
+      cells[locked].textContent = finalStr[locked];
+      cells[locked].style.borderColor = 'var(--cyan)';
+      blip(520 + locked * 60, .05, .03);
+      locked++;
+      at(perDigit, lockNext);
+    }
+    at(900, lockNext);
+  }
+
+  setReel('0'.repeat(digits));
+  rollOne(0);
+}
+
+/* -------------------------- mode: rumble -------------------------- */
+function playRumble() {
+  var ring = document.createElement('div');
+  ring.className = 'ring';
+  ring.innerHTML = '<div class="mat"></div>' +
+    '<div class="rope r1"></div><div class="rope r2"></div><div class="rope r3"></div>' +
+    '<div class="entrant-flash" id="eflash"></div>';
+  $('stage').appendChild(ring);
+
+  var chips = {};
+  function place() {
+    var names = Object.keys(chips).filter(function (n) { return !chips[n].dataset.gone; });
+    var m = names.length;
+    names.forEach(function (n, i) {
+      var ang = (-90 + i * (360 / m)) * Math.PI / 180;
+      chips[n].style.left = (50 + 30 * Math.cos(ang)) + '%';
+      chips[n].style.top = (50 + 24 * Math.sin(ang)) + '%';
+    });
+  }
+  function makeChip(name) {
+    var el = document.createElement('div');
+    el.className = 'chip entering';
+    el.innerHTML = '<span class="dot" style="background:' + color(S.contestants.indexOf(name)) + '"></span>';
+    el.appendChild(document.createTextNode(name));
+    el.style.left = '50%'; el.style.top = '50%';
+    ring.appendChild(el);
+    chips[name] = el;
+    place();
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.remove('entering'); }); });
+  }
+
+  var evs = S.result.events, t = 300;
+  evs.forEach(function (ev) {
+    if (ev.type === 'enter') {
+      at(t, function () {
+        var f = document.getElementById('eflash');
+        f.textContent = 'Entrant #' + ev.entrant;
+        f.classList.add('on');
+        setTimeout(function () { f.classList.remove('on'); }, 900 / S.speed);
+        makeChip(ev.name);
+        logLine('#' + ev.entrant + ' → ' + ev.name + ' enters the ring', 'hl');
+        blip(520, .07, .03);
+      });
+      t += 900;
+    } else {
+      at(t, function () {
+        var w = chips[ev.winner], l = chips[ev.loser];
+        if (w) { w.classList.add('hitting'); setTimeout(function () { w.classList.remove('hitting'); }, 360); }
+        blip(220, .1, .05);
+        logLine(ev.winner + ' dumps ' + ev.loser + ' with ' + ev.move, 'out');
+        if (l) {
+          l.dataset.gone = '1';
+          var dir = (S.contestants.indexOf(ev.loser) % 2) ? 1 : -1;
+          l.classList.add('gone');
+          l.style.transform = 'translate(' + (dir * 260) + 'px, 190px) rotate(' + (dir * 420) + 'deg) scale(.7)';
+          setTimeout(function () { l.remove(); delete chips[ev.loser]; }, 750 / S.speed);
+        }
+        setTimeout(place, 200 / S.speed);
+      });
+      t += 1000;
+    }
+  });
+  at(t + 400, finish);
+}
+
+/* ---------------------------- mode: rpg --------------------------- */
+function playRpg() {
+  var party = document.createElement('div');
+  party.className = 'party';
+  $('stage').appendChild(party);
+
+  var MAX = F.constants.RPG_HP;
+  var rows = {};
+  S.contestants.forEach(function (name, i) {
+    var row = document.createElement('div');
+    row.className = 'fighter';
+    row.innerHTML =
+      '<div class="top"><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + color(i) + '"></span>' +
+      '<span>' + name.replace(/[<>&]/g, '') + '</span><span class="hpn">' + MAX + ' / ' + MAX + '</span></div>' +
+      '<div class="bar"><i style="width:100%"></i></div>';
+    party.appendChild(row);
+    rows[name] = row;
+  });
+
+  function setHp(name, hp) {
+    var row = rows[name];
+    var pct = (hp / MAX) * 100;
+    var bar = row.querySelector('.bar i');
+    bar.style.width = pct + '%';
+    bar.className = pct <= 25 ? 'crit' : (pct <= 55 ? 'low' : '');
+    row.querySelector('.hpn').textContent = hp + ' / ' + MAX;
+  }
+  function floatNum(name, text, cls) {
+    var f = document.createElement('div');
+    f.className = 'float ' + (cls || '');
+    f.textContent = text;
+    rows[name].appendChild(f);
+    setTimeout(function () { f.remove(); }, 1000);
+  }
+
+  var evs = S.result.events, t = 300, step = 420;
+  evs.forEach(function (ev) {
+    if (ev.type === 'round') {
+      at(t, function () { logLine('— ROUND ' + ev.round + ' —', 'rnd'); });
+      t += 260;
+      return;
+    }
+    if (ev.type === 'attack') {
+      at(t, function () {
+        var a = rows[ev.attacker], d = rows[ev.target];
+        a.classList.add('atk');
+        setTimeout(function () { a.classList.remove('atk'); }, 320 / S.speed);
+        if (ev.missed) {
+          floatNum(ev.target, 'MISS', 'miss');
+          logLine(ev.attacker + ' swings at ' + ev.target + ' — miss');
+          blip(180, .05, .02);
+        } else {
+          d.classList.add('hit');
+          setTimeout(function () { d.classList.remove('hit'); }, 320 / S.speed);
+          floatNum(ev.target, '-' + ev.dmg, ev.crit ? 'crit' : '');
+          setHp(ev.target, ev.hpAfter);
+          logLine(ev.attacker + ' ' + ev.verb + ' ' + ev.target + ' for ' + ev.dmg + (ev.crit ? ' CRIT!' : '') + '  (' + ev.hpAfter + ' hp)', ev.crit ? 'crit' : '');
+          blip(ev.crit ? 900 : 420, ev.crit ? .1 : .05, ev.crit ? .05 : .03);
+        }
+      });
+      t += step;
+      return;
+    }
+    if (ev.type === 'ko') {
+      at(t, function () {
+        rows[ev.name].classList.add('dead');
+        logLine('☠ ' + ev.name + ' is down, finished by ' + ev.by, 'out');
+        blip(140, .22, .06);
+      });
+      t += 500;
+    }
+  });
+  at(t + 400, finish);
+}
+
+/* --------------------------- reveal / receipt --------------------- */
+$('reveal').onclick = function () {
+  S.receipt.serverSeed = S.serverSeed;
+  $('r-seed').textContent = S.serverSeed;
+  $('r-client').textContent = S.receipt.clientSeed;
+  $('r-nonce').textContent = S.receipt.nonce;
+  $('revealed').classList.remove('hidden');
+  $('reveal').disabled = true;
+  logLine('');
+  logLine('server seed revealed: ' + S.serverSeed, 'hl');
+};
+
+$('dl').onclick = function () {
+  if (!S.receipt.serverSeed) S.receipt.serverSeed = S.serverSeed;
+  var blob = new Blob([JSON.stringify(S.receipt, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'fairdraw-' + S.drawId.slice(0, 12) + '-n' + S.receipt.nonce + '.json';
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+};
+
+/* ---------------------------- exports ----------------------------- *
+ * The receipt is the proof; these are the working files — a results
+ * sheet to publish or paste into a claim tracker, and the roster as it
+ * was actually committed, so an entrant can find their own row.
+ */
+function csvCell(v) {
+  var s = String(v);
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function csvDownload(rows, filename) {
+  var text = rows.map(function (r) { return r.map(csvCell).join(','); }).join('\r\n');
+  // A BOM so Excel opens UTF-8 names correctly instead of mojibake.
+  var blob = new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+}
+
+function resultRows() {
+  var ranked = (S.result.standings || S.result.winners);
+  var rows = [['place', 'result', 'entry', 'holder', 'draw_id', 'commit', 'client_seed', 'nonce']];
+  ranked.forEach(function (entry, i) {
+    var place = i + 1;
+    rows.push([
+      place,
+      place <= S.winnerCount ? 'winner' : 'alternate ' + (place - S.winnerCount),
+      entry,
+      F.holderOf(entry),
+      S.drawId, S.commit, S.receipt.clientSeed, S.receipt.nonce
+    ]);
+  });
+  return rows;
+}
+
+function rosterRows() {
+  if (S.rosterSpec && S.rosterSpec.kind === 'tickets') {
+    var rows = [['holder', 'entries', 'first_ticket', 'last_ticket']];
+    var n = 0;
+    S.rosterSpec.entries.forEach(function (e) {
+      rows.push([e.holder, e.entries, e.holder + ' #1', e.holder + ' #' + e.entries]);
+      n += e.entries;
+    });
+    return rows;
+  }
+  var out = [['position', 'entry']];
+  S.contestants.forEach(function (c, i) { out.push([i + 1, c]); });
+  return out;
+}
+
+$('dl-results').onclick = function () {
+  csvDownload(resultRows(), 'fairdraw-results-' + S.drawId.slice(0, 12) + '-n' + S.receipt.nonce + '.csv');
+};
+
+$('dl-roster').onclick = function () {
+  csvDownload(rosterRows(), 'fairdraw-roster-' + S.drawId.slice(0, 12) + '.csv');
+};
+
+$('tover').onclick = function () {
+  if (!S.receipt.serverSeed) S.receipt.serverSeed = S.serverSeed;
+  $('receipt').value = JSON.stringify(S.receipt, null, 2);
+  show('verify');
+  $('doverify').click();
+};
+
+/* ------------------------------ verify ---------------------------- */
+refreshSize();
+setSeedSource('manual');
+
+$('doverify').onclick = function () {
+  $('v-err').textContent = '';
+  $('checks').innerHTML = '';
+  $('verdict').className = 'verdict';
+  $('recomputed').classList.add('hidden');
+  var r;
+  try { r = JSON.parse($('receipt').value); }
+  catch (e) { $('v-err').textContent = 'That is not valid JSON.'; return; }
+
+  var out;
+  try { out = F.verifyReceipt(r); }
+  catch (e) { $('v-err').textContent = String(e.message || e); return; }
+
+  $('verdict').className = 'verdict show ' + (out.ok ? 'ok' : 'no');
+  $('verdict').textContent = out.ok
+    ? '✓ VERIFIED — ' + (out.winners[0] || '?') + ' won fairly'
+    : '✗ FAILED — this receipt does not check out';
+
+  renderChecks(out.checks);
+};
+
+/* --------------------- verify: labelled fields -------------------- */
+Array.prototype.forEach.call(document.querySelectorAll('.vtab'), function (b) {
+  b.onclick = function () {
+    Array.prototype.forEach.call(document.querySelectorAll('.vtab'), function (x) {
+      x.classList.toggle('on', x === b);
+    });
+    $('v-fields').classList.toggle('hidden', b.dataset.vtab !== 'fields');
+    $('v-json').classList.toggle('hidden', b.dataset.vtab !== 'json');
+  };
+});
+
+/* Accepts a name list, or a single "1-100" line meaning that whole range. */
+function parseRoster(text) {
+  var lines = text.split('\n').map(function (s) { return s.trim(); })
+    .filter(function (s) { return s.length; });
+  if (lines.length === 1) {
+    var m = lines[0].match(/^(\d+)\s*-\s*(\d+)$/);
+    if (m) {
+      var a = parseInt(m[1], 10), b = parseInt(m[2], 10);
+      if (b < a) { var t = a; a = b; b = t; }
+      if (b - a + 1 > MAX_ENTRIES) return null;
+      var out = [];
+      for (var i = a; i <= b; i++) out.push(String(i));
+      out.spec = { kind: 'range', from: a, to: b };
+      return out;
+    }
+  }
+  return lines;
+}
+
+function renderChecks(list) {
+  $('checks').innerHTML = '';
+  list.forEach(function (c) {
+    var d = document.createElement('div');
+    d.className = 'check ' + (c.ok === true ? 'ok' : (c.ok === false ? 'no' : 'unknown'));
+    d.innerHTML = '<div class="mark">' + (c.ok === true ? '✓' : (c.ok === false ? '✗' : '?')) +
+      '</div><div><b></b><span></span></div>';
+    d.querySelector('b').textContent = c.name;
+    d.querySelector('span').textContent = c.detail;
+    $('checks').appendChild(d);
+  });
+}
+
+/* ---------------------------- CSV import -------------------------- *
+ * Exports from Gleam, Rafflecopter and the like are CSV with a header
+ * row. Take the first text-ish column as the entrant and, if a numeric
+ * column is present, treat it as the entry count. Nothing is imported
+ * silently: the review line says exactly what was found and what was
+ * dropped, because a roster you did not look at is a roster you cannot
+ * vouch for.
+ */
+function parseCsv(text) {
+  var rows = [];
+  var row = [], field = '', quoted = false;
+  for (var i = 0; i < text.length; i++) {
+    var c = text[i];
+    if (quoted) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else quoted = false;
+      } else field += c;
+    } else if (c === '"') quoted = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); field = '';
+      if (row.some(function (f) { return f.trim().length; })) rows.push(row);
+      row = [];
+    } else field += c;
+  }
+  row.push(field);
+  if (row.some(function (f) { return f.trim().length; })) rows.push(row);
+  return rows;
+}
+
+function importCsv(text) {
+  var rows = parseCsv(text);
+  if (!rows.length) return { error: 'That file has no rows.' };
+
+  // Drop a header row if the first row has no numbers and more rows follow.
+  var start = 0;
+  if (rows.length > 1 && rows[0].every(function (f) { return !/^\d+$/.test(f.trim()); })) {
+    var looksLikeHeader = rows[0].some(function (f) {
+      return /name|email|entrant|user|handle|entries|tickets|count/i.test(f);
+    });
+    if (looksLikeHeader) start = 1;
+  }
+
+  var body = rows.slice(start);
+  var width = Math.max.apply(null, body.map(function (r) { return r.length; }));
+  // Entrant column: the first with mostly non-numeric, non-empty values.
+  var nameCol = 0;
+  for (var c = 0; c < width; c++) {
+    var vals = body.map(function (r) { return (r[c] || '').trim(); }).filter(Boolean);
+    if (vals.length >= body.length * 0.8 && vals.filter(function (v) { return /^\d+$/.test(v); }).length < vals.length * 0.5) {
+      nameCol = c; break;
+    }
+  }
+  // Entry-count column: any other column that is all positive integers.
+  var countCol = -1;
+  for (var c2 = 0; c2 < width; c2++) {
+    if (c2 === nameCol) continue;
+    var nums = body.map(function (r) { return (r[c2] || '').trim(); });
+    if (nums.every(function (v) { return /^\d+$/.test(v) && parseInt(v, 10) > 0; })) { countCol = c2; break; }
+  }
+
+  var seenRow = {}, entries = [], blanks = 0, dupes = [], reflowed = 0;
+  body.forEach(function (r) {
+    var raw = (r[nameCol] || '').trim();
+    // A quoted CSV field may legally contain newlines or tabs, but the entry
+    // box is line-delimited - left alone, one entrant would silently become
+    // two and the ticket count would not match what was imported.
+    var name = raw.replace(/\s+/g, ' ').trim();
+    if (name !== raw) reflowed++;
+    if (!name) { blanks++; return; }
+    if (seenRow[name]) { dupes.push(name); seenRow[name]++; return; }
+    seenRow[name] = 1;
+    var cnt = countCol >= 0 ? parseInt(r[countCol], 10) : 1;
+    entries.push({ holder: name, entries: cnt > 0 ? cnt : 1 });
+  });
+
+  return {
+    entries: entries, blanks: blanks, dupes: dupes,
+    countCol: countCol >= 0, rows: body.length, headerSkipped: start === 1,
+    reflowed: reflowed
+  };
+}
+
+$('csv-file').onchange = function (e) {
+  var file = e.target.files && e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function () {
+    var res = importCsv(String(reader.result));
+    var out = $('csv-note');
+    out.classList.remove('hidden');
+    if (res.error) { out.textContent = res.error; return; }
+    if (!res.entries.length) { out.textContent = 'No usable entrant names found in that file.'; return; }
+
+    var total = res.entries.reduce(function (a, x) { return a + x.entries; }, 0);
+    // Land in Tickets when the file carries entry counts, Names otherwise.
+    if (res.countCol) {
+      document.querySelector('[data-src="tickets"]').click();
+      $('tickets').value = res.entries.map(function (x) { return x.holder + ', ' + x.entries; }).join('\n');
+    } else {
+      document.querySelector('[data-src="names"]').click();
+      $('names').value = res.entries.map(function (x) { return x.holder; }).join('\n');
+    }
+
+    var bits = [res.rows.toLocaleString() + ' rows read'];
+    if (res.headerSkipped) bits.push('header row skipped');
+    bits.push(res.entries.length.toLocaleString() + ' entrants');
+    if (res.countCol) bits.push(total.toLocaleString() + ' tickets');
+    if (res.dupes.length) {
+      var uniq = res.dupes.filter(function (v, i, a) { return a.indexOf(v) === i; });
+      bits.push(res.dupes.length + ' duplicate row' + (res.dupes.length === 1 ? '' : 's') +
+        ' removed (' + uniq.slice(0, 3).join(', ') + (uniq.length > 3 ? ', …' : '') + ')');
+    }
+    if (res.blanks) bits.push(res.blanks + ' blank row' + (res.blanks === 1 ? '' : 's') + ' skipped');
+    if (res.reflowed) bits.push(res.reflowed + ' name' + (res.reflowed === 1 ? '' : 's') + ' had line breaks flattened');
+    out.textContent = bits.join(' · ') + '. Check the list before you lock it.';
+    refreshSize();
+  };
+  reader.readAsText(file);
+};
+
+$('doverify-fields').onclick = function () {
+  $('v-err').textContent = '';
+  $('checks').innerHTML = '';
+  $('verdict').className = 'verdict';
+  $('recomputed').classList.add('hidden');
+
+  var seed = $('v-seed').value.trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(seed)) {
+    $('v-err').textContent = 'Server seed must be exactly 64 hex characters.'; return;
+  }
+  var roster = parseRoster($('v-roster').value);
+  if (!roster) {
+    $('v-err').textContent = 'That range is larger than ' + MAX_ENTRIES.toLocaleString() + ' entries.'; return;
+  }
+  if (roster.length < 2) { $('v-err').textContent = 'Need at least 2 contestants.'; return; }
+
+  var mode = $('v-mode').value;
+  var count = parseInt($('v-count').value, 10) || 1;
+  var nonce = parseInt($('v-nonce').value, 10) || 0;
+
+  var alts = parseInt($('v-alts').value, 10) || 0;
+  var vdraws = parseInt($('v-draws').value, 10) || 1;
+  var commit = F.sha256Hex(seed);
+  var did = F.drawId(commit, mode, count, roster.spec || roster, alts, 'fairdraw-2', 'none', vdraws);
+  var res;
+  try {
+    res = F.run({
+      mode: mode, contestants: roster, serverSeed: seed,
+      clientSeed: $('v-client').value, nonce: nonce, winnerCount: count, alternates: alts, draws: vdraws
+    });
+  } catch (e) { $('v-err').textContent = String(e.message || e); return; }
+
+  $('rc-commit').textContent = commit;
+  $('rc-drawid').textContent = did;
+  $('rc-winners').textContent = res.winners.join(', ') +
+    (res.standings.length > count ? '   |  alternates: ' + res.standings.slice(count).join(', ') : '');
+  $('recomputed').classList.remove('hidden');
+
+  var pubCommit = $('v-commit').value.trim().toLowerCase();
+  var pubId = $('v-drawid').value.trim().toLowerCase();
+  var checks = [];
+  var failed = false, unproven = false;
+
+  if (pubCommit) {
+    var cOk = pubCommit === commit;
+    if (!cOk) failed = true;
+    checks.push({ name: 'Commitment opens', ok: cOk,
+      detail: cOk ? 'the server seed hashes to the published commit' : 'this seed hashes to ' + commit });
+  } else {
+    unproven = true;
+    checks.push({ name: 'Commitment opens', ok: null,
+      detail: 'no published commit given, so nothing shows the seed was fixed before the draw' });
+  }
+
+  if (pubId) {
+    var dOk = pubId === did;
+    if (!dOk) failed = true;
+    checks.push({ name: 'Draw ID matches', ok: dOk,
+      detail: dOk ? 'roster, game and winner count are unchanged' : 'these inputs give ' + did });
+  } else {
+    unproven = true;
+    checks.push({ name: 'Draw ID matches', ok: null,
+      detail: 'no published Draw ID given, so the roster was never pinned' });
+  }
+
+  checks.push({ name: 'Replay result', ok: true,
+    detail: res.winners.join(', ') + '   (' + roster.length + ' entries, ' + res.bytesUsed + ' random bytes consumed)' });
+  renderChecks(checks);
+
+  if (failed) {
+    $('verdict').className = 'verdict show no';
+    $('verdict').textContent = '✗ FAILED — this does not check out';
+  } else if (unproven) {
+    $('verdict').className = 'verdict show warn';
+    $('verdict').textContent = '⚠ REPLAYED — ' + res.winners[0] + ' wins, but nothing was pinned in advance';
+  } else {
+    $('verdict').className = 'verdict show ok';
+    $('verdict').textContent = '✓ VERIFIED — ' + res.winners[0] + ' won fairly';
+  }
+};
+
+$('hash-in').oninput = function () {
+  $('hash-out').textContent = $('hash-in').value ? F.sha256Hex($('hash-in').value) : '—';
+};
+
+})();
+</script>
+</body>
+</html>
