@@ -292,8 +292,8 @@ Harper</textarea>
 
       <label style="margin-top:14px">Client seed comes from</label>
       <div style="display:flex;gap:7px;margin-bottom:4px">
-        <button class="btn small seedsrc on" data-seedsrc="manual">The crowd</button>
-        <button class="btn small seedsrc" data-seedsrc="drand">Public beacon (drand)</button>
+        <button class="btn small seedsrc on" data-seedsrc="drand">Public beacon (drand) &mdash; recommended</button>
+        <button class="btn small seedsrc" data-seedsrc="manual">Typed by the crowd</button>
       </div>
       <div class="hint" id="seedsrc-note" style="margin-bottom:2px"></div>
 
@@ -336,6 +336,7 @@ Harper</textarea>
         <div class="kv"><b>Seed source</b><span id="c-entropy"></span></div>
         <div class="kv"><b>Roster</b><span id="c-roster"></span></div>
         <button class="btn small" id="copy-commit" style="margin-top:12px">Copy commitment block</button>
+        <textarea id="copy-fallback" class="mono hidden" readonly spellcheck="false" style="margin-top:8px;min-height:120px" aria-label="Commitment block (select and copy manually)"></textarea>
 
         <div class="step" style="margin-top:22px"><div class="n">3</div><div><h3>Collect the client seed</h3></div></div>
         <p class="hint">Anything the crowd chooses after seeing the block above &mdash; a shouted phrase, a future Bitcoin block hash, the sum of everyone's birthdays. You cannot predict it, so you cannot steer the result.</p>
@@ -352,6 +353,7 @@ Harper</textarea>
         </div>
 
         <div id="seed-manual">
+          <div class="warn" id="manual-warn" style="margin-bottom:9px">&#9888; Typed seed: announce the client seed <b>publicly</b> (chat, stream, post) <b>before</b> you press Run. A seed only you saw proves nothing. Once a draw has run, the seed is locked; to use a different one, press <b>Start over (new commitment)</b>.</div>
           <label for="clientseed">Client seed</label>
         </div>
         <input type="text" id="clientseed" placeholder="e.g. block-921455 or pizza-friday" spellcheck="false">
@@ -446,7 +448,22 @@ Harper</textarea>
           <div style="flex:0 0 80px"><label for="v-draws">Draws</label><input type="number" id="v-draws" value="1" min="1"></div>
         </div>
 
-        <label for="v-roster" style="margin-top:11px">Contestants <span class="opt">(one per line, or a range like 1-100)</span></label>
+        <div class="row" style="margin-top:11px">
+          <div><label for="v-kind">Roster type</label><select id="v-kind">
+            <option value="list">Names / numbers (one per line, or a range like 1-100)</option>
+            <option value="tickets">Tickets (holder, count per line)</option>
+          </select></div>
+          <div style="flex:0 0 auto;padding-top:24px"><label style="display:inline"><input type="checkbox" id="v-oneper" style="width:auto"> One prize per person</label></div>
+        </div>
+        <div class="row" style="margin-top:11px">
+          <div><label for="v-seedsrc">Seed source</label><select id="v-seedsrc">
+            <option value="manual">Typed by the crowd</option>
+            <option value="drand">drand beacon round</option>
+          </select></div>
+          <div style="flex:0 0 160px"><label for="v-round">drand round</label><input type="number" id="v-round" min="1" placeholder="if drand"></div>
+        </div>
+
+        <label for="v-roster" style="margin-top:11px">Contestants <span class="opt">(as published in the commitment)</span></label>
         <textarea id="v-roster" spellcheck="false" style="min-height:104px"></textarea>
 
         <label for="v-commit" style="margin-top:11px">Published commit <span class="opt">(optional)</span></label>
@@ -490,7 +507,7 @@ Harper</textarea>
 
 </div>
 
-<script src="engine.js?v=2"></script>
+<script src="engine.js?v=3"></script>
 <script>
 (function () {
 'use strict';
@@ -504,7 +521,7 @@ var S = {
   groupBy: 'none',
   draws: 1,
   rosterSpec: null,
-  seedSource: 'manual',
+  seedSource: 'drand',
   entropy: null,
   ticketHolders: [],
   contestants: [],
@@ -759,6 +776,10 @@ $('lock').onclick = function () {
 };
 
 $('unlock').onclick = function () {
+  S.seedLocked = null;
+  $('clientseed').value = '';
+  $('clientseed').readOnly = (S.seedSource === 'drand');
+  $('clientseed').title = '';
   S.locked = false; S.serverSeed = null; S.commit = null; S.result = null; S.receipt = null;
   $('names').disabled = false;
   $('winners').disabled = false;
@@ -816,8 +837,14 @@ $('copy-commit').onclick = function () {
     var ok = false;
     try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
     ta.remove();
-    if (ok) done('Copied ✓');
-    else { window.prompt('Copy the commitment block:', text); done('Copy commitment block'); }
+    if (ok) { done('Copied ✓'); return; }
+    // Leave a visible, pre-selected copy so the host can copy it by hand.
+    var box = $('copy-fallback');
+    box.value = text;
+    box.classList.remove('hidden');
+    box.focus();
+    box.select();
+    $('copy-commit').textContent = 'Copy failed — select and copy manually';
   }
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(function () { done('Copied ✓'); }, fallback);
@@ -874,10 +901,10 @@ function setSeedSource(src) {
   });
   $('seed-manual').classList.toggle('hidden', src !== 'manual');
   $('seed-drand').classList.toggle('hidden', src !== 'drand');
-  $('clientseed').readOnly = (src === 'drand');
+  $('clientseed').readOnly = (src === 'drand') || !!S.seedLocked;
   $('seedsrc-note').textContent = src === 'drand'
     ? 'A future drand round, pinned into the Draw ID before it exists. Nobody can know it in advance — not even you. Needs internet at draw time.'
-    : 'Anything the entrants choose after seeing the commitment. Works entirely offline.';
+    : 'Anything the entrants choose after seeing the commitment. Works offline, but only proves fairness if the seed was announced publicly before the draw.';
   if (drandTimer) { clearInterval(drandTimer); drandTimer = null; }
   if (src === 'drand' && S.locked) startDrandCountdown();
 }
@@ -926,6 +953,9 @@ $('run').onclick = function () {
   $('run-err').textContent = '';
   var cs = $('clientseed').value.trim();
   if (!cs) { $('run-err').textContent = 'Enter the client seed the crowd picked.'; return; }
+  if (S.seedLocked && cs !== S.seedLocked) {
+    $('run-err').textContent = 'The client seed is locked to this commitment. Use "Start over (new commitment)" to change it.'; return;
+  }
   var nonce = parseInt($('nonce').value, 10) || 0;
 
   var res;
@@ -937,6 +967,12 @@ $('run').onclick = function () {
   } catch (e) { $('run-err').textContent = String(e.message || e); return; }
 
   S.result = res;
+  // Lock the client seed to this commitment: re-running with an edited seed
+  // under the same commitment would let a host shop for a result.
+  S.seedLocked = cs;
+  $('clientseed').value = cs;
+  $('clientseed').readOnly = true;
+  $('clientseed').title = 'Locked to this commitment. Use "Start over (new commitment)" to change it.';
   S.receipt = {
     version: 'fairdraw-2',
     drawId: S.drawId,
@@ -1490,7 +1526,7 @@ $('tover').onclick = function () {
 
 /* ------------------------------ verify ---------------------------- */
 refreshSize();
-setSeedSource('manual');
+setSeedSource('drand');
 
 $('doverify').onclick = function () {
   $('v-err').textContent = '';
@@ -1689,27 +1725,25 @@ $('doverify-fields').onclick = function () {
   if (!/^[0-9a-f]{64}$/.test(seed)) {
     $('v-err').textContent = 'Server seed must be exactly 64 hex characters.'; return;
   }
-  var roster = parseRoster($('v-roster').value);
-  if (!roster) {
-    $('v-err').textContent = 'That range is larger than ' + MAX_ENTRIES.toLocaleString() + ' entries.'; return;
-  }
-  if (roster.length < 2) { $('v-err').textContent = 'Need at least 2 contestants.'; return; }
-
-  var mode = $('v-mode').value;
-  var count = parseInt($('v-count').value, 10) || 1;
-  var nonce = parseInt($('v-nonce').value, 10) || 0;
-
-  var alts = parseInt($('v-alts').value, 10) || 0;
-  var vdraws = parseInt($('v-draws').value, 10) || 1;
-  var commit = F.sha256Hex(seed);
-  var did = F.drawId(commit, mode, count, roster.spec || roster, alts, 'fairdraw-2', 'none', vdraws);
-  var res;
+  // Same params path as the JSON-receipt verifier (engine.paramsFromFields),
+  // so one-prize-per-person and the seed source are pinned identically.
+  var p, roster;
   try {
-    res = F.run({
-      mode: mode, contestants: roster, serverSeed: seed,
-      clientSeed: $('v-client').value, nonce: nonce, winnerCount: count, alternates: alts, draws: vdraws
+    p = F.paramsFromFields({
+      serverSeed: seed, clientSeed: $('v-client').value, nonce: $('v-nonce').value,
+      mode: $('v-mode').value, winnerCount: $('v-count').value, alternates: $('v-alts').value,
+      draws: $('v-draws').value, rosterText: $('v-roster').value, rosterKind: $('v-kind').value,
+      onePrize: $('v-oneper').checked, seedSource: $('v-seedsrc').value, drandRound: $('v-round').value,
+      maxEntries: MAX_ENTRIES
     });
+    roster = F.resolveRoster(p);
   } catch (e) { $('v-err').textContent = String(e.message || e); return; }
+  if (roster.length < 2) { $('v-err').textContent = 'Need at least 2 contestants.'; return; }
+  var count = p.winnerCount;
+  var commit = p.commit;
+  var did = p.drawId;
+  var res;
+  try { res = F.run(p); } catch (e) { $('v-err').textContent = String(e.message || e); return; }
 
   $('rc-commit').textContent = commit;
   $('rc-drawid').textContent = did;

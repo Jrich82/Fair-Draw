@@ -1100,6 +1100,67 @@ test('a beacon receipt verifies offline, seed origin aside', function () {
   assert(!FairDraw.verifyReceipt(swapped).ok, 'the round could be swapped after the draw')
 })
 
+section('Manual verifier form uses the receipt params path')
+
+// Mirror of what index.html builds when a host runs a draw, as a receipt.
+function hostReceipt (o) {
+  const commit = FairDraw.sha256Hex(o.serverSeed)
+  const groupBy = o.groupBy || 'none'
+  const entropy = o.entropy || { source: 'manual' }
+  const opts = Object.assign({ alternates: 0, draws: 1, nonce: 0, groupBy }, o)
+  const r = FairDraw.run(opts)
+  return Object.assign({}, opts, {
+    version: 'fairdraw-2', commit, entropy, winners: r.winners, standings: r.standings,
+    drawId: FairDraw.drawId(commit, o.mode, o.winnerCount, o.roster || o.contestants,
+      opts.alternates, 'fairdraw-2', groupBy, opts.draws, entropy)
+  })
+}
+
+test('form: ticket + one-prize-per-person draw reproduces the host Draw ID', function () {
+  const roster = { kind: 'tickets', entries: [{ holder: 'Ada', entries: 3 }, { holder: 'Bo', entries: 1 }, { holder: 'Cy', entries: 2 }, { holder: 'Dee', entries: 5 }] }
+  const rec = hostReceipt({ mode: 'rumble', roster, serverSeed: SEED_A, clientSeed: 'crowd', winnerCount: 2, alternates: 1, groupBy: 'holder' })
+  assert(FairDraw.verifyReceipt(rec).ok, 'host receipt should verify')
+  const p = FairDraw.paramsFromFields({
+    serverSeed: SEED_A, clientSeed: 'crowd', nonce: 0, mode: 'rumble', winnerCount: 2, alternates: 1, draws: 1,
+    rosterKind: 'tickets', rosterText: 'Ada, 3\nBo, 1\nCy x 2\nDee, 5', onePrize: true, seedSource: 'manual'
+  })
+  assertEqual(p.drawId, rec.drawId, 'draw id')
+  assertEqual(JSON.stringify(FairDraw.run(p).winners), JSON.stringify(rec.winners), 'winners')
+  // The old form behaviour (rule forced off) must NOT match:
+  const off = FairDraw.paramsFromFields({
+    serverSeed: SEED_A, clientSeed: 'crowd', mode: 'rumble', winnerCount: 2, alternates: 1, draws: 1,
+    rosterKind: 'tickets', rosterText: 'Ada, 3\nBo, 1\nCy x 2\nDee, 5', onePrize: false, seedSource: 'manual'
+  })
+  assert(off.drawId !== rec.drawId, 'one-prize rule is not pinned')
+})
+
+test('form: drand draw reproduces the host Draw ID', function () {
+  const entropy = { source: 'drand', chain: FairDraw.DRAND.chain, round: 31459941 }
+  const rec = hostReceipt({ mode: 'wheel', contestants: ['Ada', 'Bo', 'Cy', 'Dee'], serverSeed: SEED_B, clientSeed: 'b5ce98', winnerCount: 1, entropy })
+  const p = FairDraw.paramsFromFields({
+    serverSeed: SEED_B, clientSeed: 'b5ce98', mode: 'wheel', winnerCount: 1, rosterKind: 'list',
+    rosterText: 'Ada\nBo\nCy\nDee', seedSource: 'drand', drandRound: '31459941'
+  })
+  assertEqual(p.drawId, rec.drawId, 'draw id')
+  assert(FairDraw.verifyReceipt(Object.assign({}, p, { winners: rec.winners })).ok, 'form params verify as a receipt')
+  const manual = FairDraw.paramsFromFields(Object.assign({}, p, { rosterText: 'Ada\nBo\nCy\nDee', rosterKind: 'list', seedSource: 'manual' }))
+  assert(manual.drawId !== rec.drawId, 'seed source is not pinned')
+})
+
+test('form: range roster and plain manual draw match the host', function () {
+  const rec = hostReceipt({ mode: 'rpg', roster: { kind: 'range', from: 1, to: 50 }, serverSeed: SEED_A, clientSeed: 'x', winnerCount: 3, draws: 2 })
+  const p = FairDraw.paramsFromFields({ serverSeed: SEED_A.toUpperCase(), clientSeed: 'x', mode: 'rpg', winnerCount: '3', draws: '2', rosterKind: 'list', rosterText: ' 50 - 1 ', seedSource: 'manual' })
+  assertEqual(p.drawId, rec.drawId, 'draw id')
+  assertEqual(JSON.stringify(FairDraw.run(p).winners), JSON.stringify(rec.winners), 'winners')
+})
+
+test('form: shipped sample receipts still verify', function () {
+  for (const f of ['sample-receipt.json', 'beacon-receipt.json']) {
+    const r = JSON.parse(require('fs').readFileSync(require('path').join(__dirname, f), 'utf8'))
+    assert(FairDraw.verifyReceipt(r).ok, f + ' no longer verifies')
+  }
+})
+
 /* ------------------------------------------------------------------ *
  * Summary                                                             *
  * ------------------------------------------------------------------ */
