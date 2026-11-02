@@ -53,3 +53,6 @@ body.wiz #wiz-open{display:none}
 .wiz-badge.bad{background:#d33;color:#fff}
 .mono{white-space:pre-wrap;word-break:break-all}
 @media (min-width:700px){.wiz-games{grid-template-columns:repeat(3,1fr)}.wiz-game{min-height:124px}.wiz-top{flex-direction:row;align-items:center}.wiz-dots{flex:1}}
+
+/* keyboard focus (polish pass 1) */
+#wiz button:focus-visible,#wiz select:focus-visible,#wiz input:focus-visible,#wiz textarea:focus-visible,#wiz summary:focus-visible{outline:3px solid var(--cyan);outline-offset:2px}

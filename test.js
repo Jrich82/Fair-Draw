@@ -1265,6 +1265,30 @@ test('easy: remembered prefs are sanitized', function () {
   assertEqual(FairEasy.sanitizePrefs(null).winners, 1)
 })
 
+test('easy: zero/negative ticket counts are flagged, not turned into names', function () {
+  const r = FairEasy.parseEntries('Ada, -3\nBo')
+  assertEqual(r.kind, 'tickets'); assertEqual(r.count, 1)
+  assertEqual(JSON.stringify(r.invalid), JSON.stringify(['Ada']))
+  assert(FairEasy.rosterError(r).indexOf('Ada') !== -1, 'names the bad line')
+  const z = FairEasy.parseEntries('Ada, 0\nBo, 0')
+  assertEqual(z.invalid.length, 2)
+  // names containing x and a hyphenated number are still plain names
+  const n = FairEasy.parseEntries('Rex-3\nMax')
+  assertEqual(n.kind, 'names'); assertEqual(n.count, 2)
+})
+
+test('easy: rosterError gives a specific plain-English reason', function () {
+  assert(/at least 2 names/.test(FairEasy.rosterError(FairEasy.parseEntries(''))), 'empty')
+  assert(/at least 2 names/.test(FairEasy.rosterError(FairEasy.parseEntries('  \n , ,'))), 'blank/commas only')
+  assert(/Only 1 entry/.test(FairEasy.rosterError(FairEasy.parseEntries('Ada'))), 'one')
+  assert(/duplicates are merged/.test(FairEasy.rosterError(FairEasy.parseEntries('Ada\nada\nADA'))), 'dupes')
+  assertEqual(FairEasy.rosterError(FairEasy.parseEntries('Ada\nBo')), '')
+  assert(/both ends/.test(FairEasy.rosterError({ kind: 'range', count: 0 })), 'empty range')
+  assert(/at least 2 numbers/.test(FairEasy.rosterError({ kind: 'range', count: 1 })), 'range of one')
+  assert(/cap/.test(FairEasy.rosterError({ kind: 'range', count: 1e9 })), 'over cap')
+  assertEqual(FairEasy.rosterError({ kind: 'range', count: 100 }), '')
+})
+
 test('easy: easy.js has no Math.random', function () {
   assert(!/Math\.random/.test(require('fs').readFileSync(require('path').join(__dirname, 'easy.js'), 'utf8')), 'no Math.random')
 })
