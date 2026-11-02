@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FairDraw — provably fair winner picker</title>
+<title>Fair-Draw — provably fair winner picker</title>
+<script src="config.js"></script>
+<meta name="theme-color" content="#07080d">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="fun.css">
 <style>
 :root{
   --bg:#07080d; --panel:#10131c; --panel-2:#161a26; --line:#232a3a;
@@ -217,7 +223,7 @@ code{font-family:var(--mono);font-size:12px;color:var(--gold);background:#0b0e16
 
 <header>
   <div>
-    <div class="logo"><b>FAIR</b><i>DRAW</i></div>
+    <div class="logo" id="app-logo"><b>FAIR</b><i>DRAW</i></div>
     <div class="tag">commit &rarr; reveal &rarr; anyone can recheck the result</div>
   </div>
   <nav>
@@ -239,6 +245,12 @@ code{font-family:var(--mono);font-size:12px;color:var(--gold);background:#0b0e16
         <button class="mode on" data-mode="wheel"><span class="ico">&#127920;</span><strong>Spinning Wheel</strong><span class="d">One uniform pick. Fast and obvious.</span></button>
         <button class="mode" data-mode="rumble"><span class="ico">&#129354;</span><strong>Royal Rumble</strong><span class="d">Entrants brawl. Last one standing.</span></button>
         <button class="mode" data-mode="rpg"><span class="ico">&#9876;&#65039;</span><strong>RPG Hit Points</strong><span class="d">60 HP each. Fight to the KO.</span></button>
+        <button class="mode" data-mode="horse" data-engine="wheel"><span class="ico">&#127943;</span><strong>Horse Race</strong><span class="d">Photo finish down the stretch.</span></button>
+        <button class="mode" data-mode="battle" data-engine="wheel"><span class="ico">&#128165;</span><strong>Battle Royale</strong><span class="d">Round-by-round eliminations.</span></button>
+        <button class="mode" data-mode="plinko" data-engine="wheel"><span class="ico">&#128309;</span><strong>Plinko</strong><span class="d">Drop the chip, watch it bounce.</span></button>
+        <button class="mode" data-mode="slots" data-engine="wheel"><span class="ico">&#127922;</span><strong>Slot Machine</strong><span class="d">Three reels. Jackpot is the winner.</span></button>
+        <button class="mode" data-mode="claw" data-engine="wheel"><span class="ico">&#129528;</span><strong>Claw Machine</strong><span class="d">Will the claw hold on?</span></button>
+        <button class="mode" data-mode="bracket" data-engine="wheel"><span class="ico">&#127942;</span><strong>Bracket</strong><span class="d">Tournament rounds for big giveaways.</span></button>
       </div>
 
       <div style="display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap;align-items:center">
@@ -508,15 +520,23 @@ Harper</textarea>
 </div>
 
 <script src="engine.js?v=3"></script>
+<script src="visual.js"></script>
+<script src="vendor/qrcode.js"></script>
 <script>
 (function () {
 'use strict';
 var F = window.FairDraw;
+var APP = window.APP_CONFIG || { NAME: 'Fair-Draw', TAGLINE: 'provably fair winner picker' };
+document.title = APP.NAME + ' — ' + APP.TAGLINE;
+(function () { var m = APP.NAME.match(/^(.+?)[- ](.+)$/), lg = document.getElementById('app-logo'); if (!lg) return;
+  lg.innerHTML = ''; var b = document.createElement('b'), i = document.createElement('i');
+  b.textContent = (m ? m[1] : APP.NAME).toUpperCase(); i.textContent = m ? m[2].toUpperCase() : ''; lg.appendChild(b); lg.appendChild(i); })();
 var $ = function (id) { return document.getElementById(id); };
 
 /* ----------------------------- state ----------------------------- */
 var S = {
   mode: 'wheel',
+  visual: 'wheel',
   src: 'names',
   groupBy: 'none',
   draws: 1,
@@ -539,6 +559,12 @@ var S = {
 };
 
 var MODE_NAMES = { wheel: 'Spinning Wheel', rumble: 'Royal Rumble', rpg: 'RPG Hit Points' };
+var VISUAL_NAMES = { horse: 'Horse Race', battle: 'Battle Royale', plinko: 'Plinko', slots: 'Slot Machine', claw: 'Claw Machine', bracket: 'Bracket' };
+/* Fun modes are presentation skins over the wheel engine: the Draw ID and
+   receipt say "wheel"; the show is replayed from visual.js. */
+function modeLabel() {
+  return VISUAL_NAMES[S.visual] ? VISUAL_NAMES[S.visual] + ' (wheel draw)' : MODE_NAMES[S.mode];
+}
 function hue(i) { return (i * 137.508) % 360; }
 function color(i) { return 'hsl(' + hue(i).toFixed(1) + ' 72% 62%)'; }
 
@@ -556,6 +582,7 @@ TABS.forEach(function (t) { $('tab-' + t).onclick = function () { show(t); }; })
 /* ------------------------------ audio ---------------------------- */
 var AC = null;
 function blip(freq, dur, vol) {
+  if (window.FunPack && window.FunPack.muted()) return;
   try {
     if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
     var o = AC.createOscillator(), g = AC.createGain();
@@ -571,7 +598,8 @@ function blip(freq, dur, vol) {
 Array.prototype.forEach.call(document.querySelectorAll('.mode'), function (b) {
   b.onclick = function () {
     if (S.locked) return;
-    S.mode = b.dataset.mode;
+    S.mode = b.dataset.engine || b.dataset.mode;
+    S.visual = b.dataset.mode;
     Array.prototype.forEach.call(document.querySelectorAll('.mode'), function (x) {
       x.classList.toggle('on', x === b);
     });
@@ -668,7 +696,9 @@ function refreshSize() {
   var w = $('size-warn');
   if (!n) { w.classList.add('hidden'); return; }
   var secs = estimateSeconds(n);
-  if (S.mode !== 'wheel' && n > 24) {
+  if (VISUAL_NAMES[S.visual]) {
+    w.classList.add('hidden');
+  } else if (S.mode !== 'wheel' && n > 24) {
     w.classList.remove('hidden');
     w.textContent = n + ' entrants in ' + MODE_NAMES[S.mode] + ' plays for roughly ' +
       Math.round(secs / 60) + ' min at 1× (' + Math.round(secs / 4) + 's at 4×). ' +
@@ -750,7 +780,7 @@ $('lock').onclick = function () {
 
   $('c-drawid').textContent = S.drawId;
   $('c-commit').textContent = S.commit;
-  $('c-mode').textContent = MODE_NAMES[S.mode];
+  $('c-mode').textContent = modeLabel();
   $('c-count').textContent = S.winnerCount;
   $('c-alts').textContent = S.alternates;
   $('c-group').textContent = S.groupBy === 'holder' ? 'one prize per person' : 'every entry independent';
@@ -809,7 +839,7 @@ $('copy-commit').onclick = function () {
     'FAIRDRAW COMMITMENT',
     'Draw ID : ' + S.drawId,
     'Commit  : ' + S.commit + '   (= SHA-256 of the hidden server seed)',
-    'Game    : ' + MODE_NAMES[S.mode],
+    'Game    : ' + modeLabel(),
     'Winners : ' + S.winnerCount,
     'Alts    : ' + S.alternates + '  (ranked backups, fixed now)',
     'Rule    : ' + (S.groupBy === 'holder' ? 'one prize per person' : 'every entry independent'),
@@ -1031,11 +1061,13 @@ function play() {
   $('log').innerHTML = '';
   $('banner').classList.remove('show');
   $('revealed').classList.add('hidden');
+  if (!(S.receipt && S.receipt.serverSeed)) S.verified = false;
   $('stage').innerHTML = '';
   logLine('client seed  ' + S.receipt.clientSeed, 'hl');
   logLine('nonce        ' + S.receipt.nonce, 'hl');
   logLine('commit       ' + S.commit.slice(0, 24) + '…');
   logLine('');
+  if (window.FunPack && window.FunPack.handles(S.visual)) { window.FunPack.play(); return; }
   if (S.mode === 'wheel') { if (S.contestants.length > WHEEL_MAX) playOdometer(); else playWheel(); }
   else if (S.mode === 'rumble') playRumble();
   else playRpg();
@@ -1068,6 +1100,7 @@ function finish() {
   var alts = (S.result.standings || []).slice(S.winnerCount);
   if (alts.length) logLine('alternates, in order: ' + alts.join(', '), 'crit');
   blip(660, .1, .05); at(120, function () { blip(880, .16, .05); });
+  if (window.FunPack) window.FunPack.onFinish();
 }
 
 /* --------------------------- mode: wheel -------------------------- */
@@ -1443,6 +1476,7 @@ $('reveal').onclick = function () {
   $('r-nonce').textContent = S.receipt.nonce;
   $('revealed').classList.remove('hidden');
   $('reveal').disabled = true;
+  try { S.verified = !!F.verifyReceipt(S.receipt).ok; } catch (e) { S.verified = false; }
   logLine('');
   logLine('server seed revealed: ' + S.serverSeed, 'hl');
 };
@@ -1794,11 +1828,30 @@ $('doverify-fields').onclick = function () {
   }
 };
 
+/* Hooks for fun.js (sound, confetti, fun modes, OBS replay). Read-only
+   access to the draw; fun.js never calls the engine with its own inputs. */
+window.FairDrawUI = {
+  S: S, $: $, at: at, logLine: logLine, finish: finish, clearTimers: clearTimers, blip: blip,
+  refreshSize: refreshSize, show: show, color: color,
+  /* OBS / shared replay of an already-revealed receipt. Verifies first. */
+  replayReceipt: function (r, visual) {
+    var v = F.verifyReceipt(r);
+    if (!v.ok) throw new Error('receipt does not verify');
+    S.mode = r.mode; S.visual = visual || r.mode;
+    S.contestants = F.resolveRoster(r);
+    S.winnerCount = r.winnerCount; S.alternates = r.alternates || 0;
+    S.commit = r.commit; S.drawId = r.drawId; S.serverSeed = r.serverSeed;
+    S.result = F.run(r); S.receipt = r; S.verified = true;
+    show('draw'); play();
+  }
+};
+
 $('hash-in').oninput = function () {
   $('hash-out').textContent = $('hash-in').value ? F.sha256Hex($('hash-in').value) : '—';
 };
 
 })();
 </script>
+<script src="fun.js"></script>
 </body>
 </html>

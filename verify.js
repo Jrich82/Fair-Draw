@@ -25,6 +25,7 @@ const USAGE = [
   '  node verify.js                  verify a receipt read from stdin',
   '  node verify.js --selftest       run the test suite',
   '  node verify.js --no-beacon <f>  skip the network check of a drand seed',
+  '  node verify.js --show <f>       also print the replayable show (elimination order, commentary, bracket)',
   '  node verify.js --help           show this message',
   '',
   'Exit code is 0 when the receipt verifies, 1 otherwise.',
@@ -435,7 +436,8 @@ async function main (argv) {
   const files = args.filter(a => a[0] !== '-')
   const flags = args.filter(a => a[0] === '-')
   const noBeacon = flags.includes('--no-beacon')
-  const rest = flags.filter(f => f !== '--no-beacon')
+  const wantShow = flags.includes('--show')
+  const rest = flags.filter(f => f !== '--no-beacon' && f !== '--show')
   if (rest.length) fail('unknown option: ' + rest[0])
   if (files.length > 1) fail('one receipt at a time, please (got ' + files.length + ' paths)')
 
@@ -462,7 +464,23 @@ async function main (argv) {
     return 1
   }
 
+  if (wantShow && ok) printShow(receipt)
   return ok ? 0 : 1
+}
+
+/* Presentation layer (visual.js): purely cosmetic, never decides winners. */
+function printShow (receipt) {
+  const V = require('./visual.js')
+  const contestants = FairDraw.resolveRoster(receipt)
+  const standings = receipt.standings || receipt.winners
+  const p = V.plan({ serverSeed: receipt.serverSeed, clientSeed: receipt.clientSeed, nonce: receipt.nonce, contestants, standings })
+  out('')
+  out(bold('Show replay (presentation only — winners above are from the engine)'))
+  out('Elimination order (first out first):')
+  p.eliminations.forEach((n, i) => out('  ' + (i + 1) + '. ' + p.quips[i]))
+  out('Champion: ' + p.order[0])
+  out('Bracket rounds: ' + p.bracket.length)
+  p.bracket.forEach((r, i) => out('  R' + (i + 1) + ': ' + r.map(m => (m.a || 'BYE') + ' v ' + (m.b || 'BYE') + ' -> ' + m.winner).join(' | ')))
 }
 
 main(process.argv).then((code) => { process.exitCode = code })

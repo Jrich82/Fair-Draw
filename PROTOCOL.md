@@ -1053,3 +1053,36 @@ which would cost `engine.js` its zero-dependency, any-runtime property. So:
 A verifier wanting the stronger guarantee should check the signature with
 drand's own tooling. A verifier that cannot reach the network must say the
 seed origin is unconfirmed rather than implying it passed.
+
+
+## Presentation layer (fun modes) — `visual.js`
+
+The fun modes (Horse Race, Battle Royale, Plinko, Slot Machine, Claw Machine,
+Bracket) do **not** change the protocol. They run the `wheel` mode; the
+commitment, Draw ID and receipt are byte-for-byte what a plain wheel draw
+produces, and the chosen skin is not bound into anything.
+
+A show needs more than the engine ranks (a wheel ranks only winners +
+alternates), so `visual.js` derives the rest from a separate stream:
+
+    showRng = FairRng(serverSeed, "fairdraw-visual-1|" + clientSeed, nonce)
+
+i.e. the same HMAC-SHA256 construction with a domain-separated client-seed
+string, so it shares no blocks with the result stream and reads none of its
+bytes. From it, in this exact order:
+
+1. `rest` = contestants not in `standings`, in roster order, Fisher-Yates
+   shuffled (`shuffle`, as in the engine).
+2. `order = standings ++ rest` (place 1..N); `eliminations = reverse(order[1..])`
+   (first out first; the last elimination is place 2, the "final two" loser).
+3. One commentary line per elimination: `QUIPS[nextInt(QUIPS.length)]` with
+   `{name}` replaced.
+4. Bracket: `size` = next power of two ≥ N; `shuffle(order)` padded with byes;
+   first-round match *i* = slot *i* vs slot *i + size/2* (so a bye never meets
+   a bye); each match is won by whoever has the better place in `order`. The
+   champion is therefore always `standings[0]`.
+5. `jitter[i] = nextInt(1000)/1000` for each place (cosmetic offsets).
+
+Remaining cosmetic motion (confetti, horse jiggle, slot blur) uses a small
+seeded PRNG and never affects any name or order. `node verify.js --show
+<receipt>` reproduces steps 1–4 from a revealed receipt.

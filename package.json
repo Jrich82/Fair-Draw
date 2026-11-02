@@ -5,6 +5,8 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "test": "node test.js && node verify.js --selftest && node verify.js sample-receipt.json && node verify.js beacon-receipt.json"
+    "test": "node scripts/check.js && node test.js && node verify.js --selftest && node verify.js sample-receipt.json && node verify.js beacon-receipt.json",
+    "check": "node scripts/check.js",
+    "sync": "node scripts/sync-manifest.js"
   }
 }

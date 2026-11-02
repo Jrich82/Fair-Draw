@@ -20,6 +20,55 @@ chance in all three. Pick whichever one your audience will enjoy watching.
 
 ---
 
+## Fun pack (visual only — the engine still picks)
+
+Everything below is **presentation**. Winners, alternates and their order come
+only from `engine.js`; none of it uses `Math.random` for anything that touches a
+result, and existing receipts verify unchanged.
+
+- **New game modes:** Horse Race, Battle Royale (round-by-round eliminations),
+  Plinko, Slot Machine, Claw Machine and a tournament **Bracket** for big
+  giveaways. They are skins over the wheel draw: the commitment and receipt say
+  `mode: "wheel"`, the commitment block shows e.g. *Horse Race (wheel draw)*.
+- **Suspense:** 3-2-1 drumroll countdown, a *Final Two* showdown and slow-mo
+  near misses (the claw drops the runner-up, the third reel stops on the
+  runner-up first) before the reveal.
+- **Elimination order + commentary + bracket** come from `visual.js`, a separate
+  domain-separated HMAC stream (`FairRng(serverSeed, "fairdraw-visual-1|" + clientSeed, nonce)`).
+  Ranked places are copied from the engine; only unranked entrants are shuffled.
+  `node verify.js --show receipt.json` prints the same show. See PROTOCOL.md
+  *Presentation layer*.
+- **Sound & confetti:** Web Audio synthesized SFX (no audio files), 🔊 mute
+  toggle, canvas confetti, optional 🗣 "Winner winner!" via speechSynthesis.
+  Both toggles persist in localStorage.
+- **Themes:** Neon (default), Retro Arcade, Casino, Winter Cabin, RuralDegen.
+  Picker in the header, saved in localStorage, or force one with `?theme=cabin`
+  (`arcade`, `casino`, `cabin`, `ruraldegen`).
+- **Twitch `!enter`:** under the Names box, type a channel and Connect. It joins
+  Twitch chat read-only and anonymously (`justinfan…` login over
+  `wss://irc-ws.chat.twitch.tv`, no tokens stored anywhere). Each chatter who
+  types `!enter` is added once (case-insensitive dedupe). Press **Lock roster**,
+  then **Lock & commit** (committing also closes chat entry, since the roster is
+  bound into the Draw ID).
+- **Winner card:** after a draw, *Winner card (.png)* renders a 1200×630 PNG
+  with winner, optional prize text, date, Draw ID, "Verified fair" badge and the
+  site URL. (Publish the receipt so the badge is checkable.)
+- **Share & install (footer):** Copy link, native Share, a QR code of the page
+  generated locally (vendored MIT `qrcode-generator` in `vendor/`, no CDN), and
+  **Install app** (PWA: `manifest.webmanifest`, icons in `icons/`, `sw.js`
+  caches the static files for offline use; drand/Twitch are never cached). On
+  iPhone/iPad a hint explains *Share → Add to Home Screen*.
+- **OBS link:** copies the URL with `?obs=1` — transparent background, stage and
+  winner only. Add it as an OBS Browser Source. After you reveal the server
+  seed, the OBS link also carries the receipt (`#receipt=…`), and the OBS page
+  verifies it and replays that exact draw. Press **H** (Interact) to show
+  controls in OBS mode.
+
+Works from `file://` too, except Twitch, drand, the service worker and install
+(browsers only allow those over http/https).
+
+**Free-entry giveaways only** — this note is in the page footer.
+
 ## Verify online
 
 Once GitHub Pages is on, the page (host + built-in verifier) is served at:
@@ -436,3 +485,22 @@ game mode, and computed test vectors — is in [PROTOCOL.md](PROTOCOL.md).
 
 MIT — see [LICENSE](LICENSE). The engine, the CLI verifier and the protocol
 stay free and auditable so anyone can check a draw.
+
+## Renaming the product / bumping the version
+
+The display name is **not** hard-coded. Change it in one place:
+
+1. Edit `config.js` → `NAME` (and `SHORT_NAME`, `SITE` if the URL changes).
+   It feeds the page title, header logo, footer, winner card and share sheet.
+2. Run `npm run sync` to copy the name into `manifest.webmanifest` (the PWA name).
+3. Bump `VERSION` in `config.js` on any release: the service-worker cache key
+   (`sw.js`) derives from it, so installed copies pick up the new files.
+
+`npm run check` (also part of `npm test`) fails if the manifest name drifts from
+`config.js`, or if `sw.js` pre-caches a file that does not exist.
+Icons are name-free (pine tree + check mark); regenerate with
+`python3 scripts/make-icons.py` (needs Pillow).
+
+Note: internal protocol identifiers such as `fairdraw-2` (Draw ID / receipt
+version) are deliberately **not** tied to the display name — changing them would
+break verification of existing receipts.
