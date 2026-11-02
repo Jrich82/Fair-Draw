@@ -87,6 +87,35 @@ The repo includes an empty `.nojekyll` file so Pages serves the files as-is.
 
 ## Quick start
 
+Open <https://jrich82.github.io/Fair-Draw/> (or `index.html`). The default is a
+3-step **easy setup**, built for phones:
+
+1. **Add names** — paste or type, one per line or comma-separated. `Name, 5`
+   lines become tickets. Or tick *Use a number range*, or *Let Twitch chat type
+   !enter* and enter your channel. The entrant count updates live.
+2. **Pick a game** — tap a card (Wheel, Royal Rumble, RPG HP, Horse Race,
+   Battle Royale, Plinko, Slots, Claw, Bracket), set winners with − / +, and
+   optionally a theme.
+3. **Start** — one button locks the roster, makes the commitment and pins a
+   public drand round about 45 s ahead. Tap **Copy** and post the short
+   message (game, Draw ID, commit hash, drand round) in chat. A countdown runs
+   until that round is published; then the draw and animation run, the server
+   seed is revealed and the receipt is re-verified on its own. The winner
+   screen has confetti, a winner-card download, **Draw again (new
+   commitment)** and **Show proof** (receipt download + verifier).
+
+If drand can't be reached you get a **Retry** button. It never switches to a
+typed seed on its own; a typed seed (Advanced → Seed source) needs a new
+commitment and has to be announced in chat *before* you start.
+
+**Advanced** (collapsed on step 3): typed seed, nonce, draws budget,
+alternates, one prize per person, raw commit/receipt fields, verifier form.
+**Classic / advanced mode →** opens the full original UI (`?classic=1` also
+works, and the choice is remembered); **✨ Easy setup** goes back. The wizard
+remembers your roster, game and winner count in localStorage, so repeat hosts
+are fast. The wizard drives the same controls as the classic UI, so the
+protocol, Draw ID and receipts are identical.
+
 It is a static page. Double-click `index.html` and it works.
 
 Two caveats to opening it straight off disk: the **Copy commitment block**

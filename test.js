@@ -1218,6 +1218,58 @@ test('show: shipped receipts are unaffected (plan does not touch the result stre
 })
 
 /* ------------------------------------------------------------------ *
+ * Easy-setup wizard helpers (easy.js) — pure, no protocol changes      *
+ * ------------------------------------------------------------------ */
+const FairEasy = require('./easy.js')
+
+test('easy: one-per-line and comma-separated names, dupes dropped', function () {
+  const r = FairEasy.parseEntries('Ada\nBo, Cass ,Dex\n\n ada \nEli')
+  assertEqual(r.kind, 'names')
+  assertEqual(JSON.stringify(r.names), JSON.stringify(['Ada', 'Bo', 'Cass', 'Dex', 'Eli']))
+  assertEqual(r.count, 5)
+  assertEqual(r.dupes.length, 1)
+})
+
+test('easy: "Name, 5" switches to tickets; plain lines count 1', function () {
+  const r = FairEasy.parseEntries('Ada, 5\nBo, 3\nCass')
+  assertEqual(r.kind, 'tickets')
+  assertEqual(JSON.stringify(r.entries), JSON.stringify([{ holder: 'Ada', entries: 5 }, { holder: 'Bo', entries: 3 }, { holder: 'Cass', entries: 1 }]))
+  assertEqual(r.count, 9); assertEqual(r.people, 3)
+  // same tickets the engine would expand from the classic textarea
+  assertEqual(FairDraw.makeTickets(r.entries).length, 9)
+})
+
+test('easy: range count, winners clamp, countdown never negative', function () {
+  assertEqual(FairEasy.rangeCount(1, 100), 100)
+  assertEqual(FairEasy.rangeCount(10, 1), 10)
+  assertEqual(FairEasy.rangeCount('x', 3), 0)
+  assertEqual(FairEasy.clampWinners(5, 3), 2)
+  assertEqual(FairEasy.clampWinners(0, 10), 1)
+  assertEqual(FairEasy.clampWinners(3, 0), 1)
+  assertEqual(FairEasy.secondsUntil(100, 99500), 1)
+  assertEqual(FairEasy.secondsUntil(100, 200000), 0)
+})
+
+test('easy: chat post is short and carries Draw ID + commit prefixes', function () {
+  const txt = FairEasy.chatPost({ game: 'Horse Race', winners: 1, count: 12, drawId: 'abcdef0123456789', commit: '9f'.repeat(32), round: 123, site: 'https://x/' })
+  assert(txt.indexOf('abcdef012345') !== -1, 'draw id short')
+  assert(txt.indexOf('9f9f9f9f9f9f9f9f') !== -1, 'commit prefix')
+  assert(txt.indexOf('drand round 123') !== -1, 'round')
+  assert(txt.length < 300, 'short')
+})
+
+test('easy: remembered prefs are sanitized', function () {
+  const p = FairEasy.sanitizePrefs('{"mode":"evil","winners":999,"chan":"a b<c>","text":"Ada"}')
+  assertEqual(p.mode, 'wheel'); assertEqual(p.winners, 50); assertEqual(p.chan, 'abc'); assertEqual(p.text, 'Ada')
+  assertEqual(FairEasy.sanitizePrefs('not json').mode, 'wheel')
+  assertEqual(FairEasy.sanitizePrefs(null).winners, 1)
+})
+
+test('easy: easy.js has no Math.random', function () {
+  assert(!/Math\.random/.test(require('fs').readFileSync(require('path').join(__dirname, 'easy.js'), 'utf8')), 'no Math.random')
+})
+
+/* ------------------------------------------------------------------ *
  * Summary                                                             *
  * ------------------------------------------------------------------ */
 

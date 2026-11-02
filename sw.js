@@ -6,7 +6,7 @@
 importScripts('config.js')
 const VERSION = 'app-cache-v' + self.APP_CONFIG.VERSION
 const ASSETS = [
-  './', 'index.html', 'config.js', 'engine.js', 'engine.js?v=3', 'visual.js', 'fun.js', 'fun.css',
+  './', 'index.html', 'config.js', 'engine.js', 'engine.js?v=3', 'visual.js', 'fun.js', 'fun.css', 'easy.js', 'wizard.js', 'wizard.css',
   'vendor/qrcode.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-192.png',
   'icons/maskable-512.png', 'icons/apple-touch-icon.png'

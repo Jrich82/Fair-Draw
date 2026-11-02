@@ -5,3 +5,4 @@ Thumbs.db
 
 # local dev server config (machine-specific paths)
 .claude/
+shots/

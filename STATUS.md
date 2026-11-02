@@ -16,7 +16,7 @@ node test.js
 node verify.js beacon-receipt.json
 ```
 
-Open `index.html` directly, or serve the folder. **115/115 tests pass** (`npm test` runs tests, selftest and both sample receipts).
+Open `index.html` directly, or serve the folder. **121/121 tests pass** (`npm test` runs tests, selftest and both sample receipts).
 
 ## Files
 
@@ -24,8 +24,9 @@ Open `index.html` directly, or serve the folder. **115/115 tests pass** (`npm te
 |---|---|
 | `engine.js` | single source of truth — SHA-256, HMAC, the byte stream, all three games. Pure, synchronous, no dependencies, no network |
 | `index.html` | the app: setup, three animated draws, verifier |
+| `easy.js` / `wizard.js` / `wizard.css` | default 3-step easy setup (pure helpers / UI driver over the classic controls / mobile-first styles) |
 | `verify.js` | independent CLI verifier (`node verify.js receipt.json`) |
-| `test.js` | 109 tests including chi-square uniformity and NIST vectors |
+| `test.js` | 121 tests including chi-square uniformity and NIST vectors |
 | `PROTOCOL.md` | byte-level spec for reimplementing the verifier elsewhere |
 | `README.md` | operator guide |
 | `research/` | four research passes + `00-SYNTHESIS.md` (the build plan) |
@@ -103,3 +104,14 @@ disk. The dev server sends no-cache headers for this reason.
 - Winner card PNG; footer with free-entry note, share/copy/QR, PWA install (manifest, icons, `sw.js`), OBS `?obs=1` transparent mode with verified receipt replay.
 - Tests: +6 show tests (115 total). Headless Chrome smoke: all 9 modes × 7 and 40 entrants from file://, no console errors.
 - Known gaps: Twitch join not tested against live chat; service worker/install not tested on the deployed site; sounds/speech not listened to; mobile layout only lightly checked.
+
+## 2026-11-01 — easy setup (branch `feature/easy-setup`)
+
+- Default flow is now a 3-screen wizard: Add names → Pick a game → Start. Classic UI is one tap away ("Classic / advanced mode", `?classic=1`, remembered).
+- Start does lock → commit → drand round about 45 s ahead → "Post this in chat" + Copy → countdown → fetch (3 tries) → run + animation → auto-reveal → re-verify → winner screen (confetti, card, Draw again, Show proof).
+- If drand fails it shows a Retry plus the typed-seed option; it never switches source silently.
+- Advanced (collapsed): typed seed, nonce, draws, alternates, one-per-person, links to raw fields and the verifier.
+- Protocol unchanged. The wizard sets the same classic inputs and presses Lock / Run / Reveal. The only engine-adjacent change is `S.drandLead` (seconds ahead for the pinned round; classic still uses 90, wizard 45).
+- Remembers roster/range/Twitch channel/game/winners (`fd.wiz`) and theme (`fd.theme`).
+- Tests: +6 easy.js tests (121 total). Headless Chrome e2e at 375×667 and 1366×900 for wheel and horse race (plus plinko with drand failure → retry), using real drand and a mocked drand. Every receipt verified in-page; real-drand receipts verify with `node verify.js`, including the beacon check. Mocked ones fail the beacon check as expected and pass with `--no-beacon`. No console errors apart from the deliberately aborted drand requests.
+- Known gaps: not tried on a real phone; Twitch toggle not tested against live chat; the clipboard Copy needs a secure context (falls back to select/execCommand); typed-seed path through the wizard not covered end-to-end in headless.

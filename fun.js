@@ -374,7 +374,7 @@ function winnerCard() {
   };
   var wrap = el('div', { style: 'flex:0 0 auto;display:flex;gap:6px' }, [prize, btn]);
   row.appendChild(wrap);
-  window.FunPack.winnerCard = winnerCard; window.FunPack.cardVerified = cardVerified;
+  window.FunPack.winnerCard = winnerCard; window.FunPack.cardVerified = cardVerified; window.FunPack.confetti = confetti;
 })();
 
 /* ----------------------- Share / PWA / OBS footer ------------------ */

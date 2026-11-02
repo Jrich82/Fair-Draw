@@ -1,0 +1,55 @@
+/* Easy-setup wizard (default flow). Mobile-first; works at 375px. */
+#wiz{display:none;max-width:640px;margin:0 auto;padding:4px 2px 30px}
+body.wiz #wiz{display:block}
+body.wiz header nav button[id^="tab-"],body.wiz #p-setup,body.wiz #p-verify,body.wiz #banner{display:none!important}
+body.wiz #wiz:not(.playing)~#p-draw{display:none!important}
+body.wiz #wiz.playing .wiz-screen,body.wiz #wiz.playing .wiz-top{display:none!important}
+body:not(.wiz) #wiz-open{display:inline-block}
+body.wiz #wiz-open{display:none}
+.wiz-top{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.wiz-dots{display:flex;gap:6px}
+.wiz-dots span{flex:1;text-align:center;font-size:12px;padding:8px 2px;border-radius:999px;border:1px solid var(--line);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wiz-dots span.on{border-color:var(--cyan);color:var(--ink);font-weight:700}
+.wiz-dots span.done{color:var(--good);border-color:var(--good)}
+.wiz-link{background:none;border:0;color:var(--dim);text-decoration:underline;font-size:13px;align-self:flex-end;padding:8px 0;min-height:40px;cursor:pointer}
+.wiz-screen h2{margin:4px 0 8px;font-size:26px}
+.wiz-screen textarea#wiz-names{min-height:220px;font-size:17px;line-height:1.45}
+.wiz-count{font-size:20px;font-weight:700;color:var(--gold);margin:12px 0 4px}
+.wiz-toggle{display:flex!important;align-items:center;gap:10px;font-size:16px!important;text-transform:none!important;letter-spacing:0!important;color:var(--ink)!important;margin:14px 0 6px;min-height:44px;cursor:pointer}
+.wiz-toggle input{width:24px!important;height:24px;margin:0;flex:0 0 auto}
+.wiz-range,.wiz-tw{display:flex;gap:8px;align-items:center}
+.wiz-range input,.wiz-tw input{flex:1;min-width:0;font-size:17px;min-height:48px}
+.wiz-nav{display:flex;gap:10px;margin-top:22px}
+.wiz-nav .btn{flex:1}
+.btn.big{min-height:56px;font-size:17px;width:100%;margin-top:10px}
+.btn.huge{display:block;width:100%;min-height:96px;font-size:30px;margin:18px 0 8px;border-radius:18px}
+.wiz-games{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.wiz-game{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:104px;border-radius:14px;border:2px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;padding:8px 4px;font:inherit}
+.wiz-game .e{font-size:38px;line-height:1}
+.wiz-game b{font-size:13px}
+.wiz-game.on{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,224,214,.25);background:var(--panel-2)}
+.wiz-stepper{display:flex;align-items:center;gap:12px;margin:20px 0 8px;font-size:18px}
+.wiz-stepper span{flex:1}
+.wiz-stepper .btn{width:56px;height:56px;font-size:26px;padding:0}
+.wiz-stepper output{min-width:40px;text-align:center;font-size:26px;font-weight:700}
+.wiz-theme{display:flex!important;align-items:center;gap:8px;font-size:13px;color:var(--dim)}
+.wiz-theme select{width:auto;padding:6px 8px;font-size:13px}
+.wiz-summary{font-size:18px;color:var(--dim)}
+.wiz-live{border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0;background:var(--panel)}
+.wiz-live h3{margin:0 0 8px}
+#wiz-post{min-height:120px;font-size:14px}
+.wiz-cd{font-size:64px;font-weight:800;text-align:center;color:var(--gold);margin:12px 0 0;font-variant-numeric:tabular-nums}
+.wiz-adv,.wiz-raw,.wiz-proof{margin-top:16px;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.wiz-adv summary,.wiz-raw summary,.wiz-proof summary{cursor:pointer;min-height:36px;line-height:36px;font-weight:700}
+.wiz-field{display:flex!important;flex-direction:column;gap:4px;margin:10px 0}
+.wiz-field input,.wiz-field select{min-height:44px}
+.wiz-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.wiz-row .btn{flex:1 1 150px;min-height:48px}
+.wiz-trophy{font-size:72px;text-align:center;margin-top:10px}
+.wiz-winner{font-size:44px;font-weight:800;text-align:center;color:var(--gold);word-break:break-word}
+.wiz-also{text-align:center;font-size:18px;margin:6px 0}
+.wiz-badge{text-align:center;font-weight:700;border-radius:999px;padding:10px;margin:14px 0}
+.wiz-badge.ok{background:var(--good);color:#000}
+.wiz-badge.bad{background:#d33;color:#fff}
+.mono{white-space:pre-wrap;word-break:break-all}
+@media (min-width:700px){.wiz-games{grid-template-columns:repeat(3,1fr)}.wiz-game{min-height:124px}.wiz-top{flex-direction:row;align-items:center}.wiz-dots{flex:1}}
