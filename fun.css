@@ -1,9 +1,9 @@
 /* Fun pack: themes, fun modes, confetti, share, OBS. */
-html[data-theme="arcade"]{--bg:#0a0018;--panel:#140029;--panel-2:#1d0038;--line:#3a1366;--ink:#f6f0ff;--dim:#b49ad6;--cyan:#00f0ff;--mag:#ff2bd6;--gold:#fff200;--good:#39ff14}
+html[data-theme="arcade"]{--faint:#8f7fb0;--bg:#0a0018;--panel:#140029;--panel-2:#1d0038;--line:#3a1366;--ink:#f6f0ff;--dim:#b49ad6;--cyan:#00f0ff;--mag:#ff2bd6;--gold:#fff200;--good:#39ff14}
 html[data-theme="arcade"] body{font-family:"Courier New",ui-monospace,monospace}
-html[data-theme="casino"]{--bg:#06140c;--panel:#0b2416;--panel-2:#10301e;--line:#1f4a31;--ink:#fdf6e3;--dim:#c9b98a;--cyan:#e8c45a;--mag:#d72638;--gold:#ffd700;--good:#2ecc71}
-html[data-theme="cabin"]{--bg:#1b1410;--panel:#2a1f18;--panel-2:#33261d;--line:#4a3628;--ink:#f7efe6;--dim:#c4ad97;--faint:#8c7663;--cyan:#9fd3ff;--mag:#e2584d;--gold:#f2b84b;--good:#7fc97f}
-html[data-theme="ruraldegen"]{--bg:#0d120b;--panel:#161f12;--panel-2:#1e2a18;--line:#2f4126;--ink:#eef5e6;--dim:#a7b99a;--cyan:#ff7a1a;--mag:#3fb950;--gold:#ffcf3f;--good:#3fb950}
+html[data-theme="casino"]{--faint:#8f9a7f;--bg:#06140c;--panel:#0b2416;--panel-2:#10301e;--line:#1f4a31;--ink:#fdf6e3;--dim:#c9b98a;--cyan:#e8c45a;--mag:#d72638;--gold:#ffd700;--good:#2ecc71}
+html[data-theme="cabin"]{--bg:#1b1410;--panel:#2a1f18;--panel-2:#33261d;--line:#4a3628;--ink:#f7efe6;--dim:#c4ad97;--faint:#a38c78;--cyan:#9fd3ff;--mag:#e2584d;--gold:#f2b84b;--good:#7fc97f}
+html[data-theme="ruraldegen"]{--faint:#869a7a;--bg:#0d120b;--panel:#161f12;--panel-2:#1e2a18;--line:#2f4126;--ink:#eef5e6;--dim:#a7b99a;--cyan:#ff7a1a;--mag:#3fb950;--gold:#ffcf3f;--good:#3fb950}
 html[data-theme] body{background-image:none}
 html[data-theme="cabin"] body{background-image:radial-gradient(700px 400px at 50% -10%,rgba(242,184,75,.12),transparent 60%)}
 

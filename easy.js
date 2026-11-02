@@ -92,6 +92,22 @@
     return Math.max(0, Math.ceil(roundTimeSec - nowMs / 1000))
   }
 
+  /**
+   * Parse one raw Twitch IRC websocket frame (may hold several \r\n lines).
+   * Returns { ping: bool, enters: [login,...] } for lines whose chat message
+   * starts with !enter. Anonymous read-only; never trusts display names.
+   */
+  function twitchEnters (raw) {
+    var out = { ping: false, enters: [] }
+    String(raw || '').split(/\r?\n/).forEach(function (line) {
+      if (line.indexOf('PING') === 0) { out.ping = true; return }
+      if (line.charAt(0) === '@') line = line.slice(line.indexOf(' ') + 1) // IRCv3 tags
+      var m = line.match(/^:([a-z0-9_]+)![^ ]+ PRIVMSG #[^ ]+ :(.*)$/i)
+      if (m && /^!enter\b/i.test(m[2].trim())) out.enters.push(m[1])
+    })
+    return out
+  }
+
   var MODES = ['wheel', 'rumble', 'rpg', 'horse', 'battle', 'plinko', 'slots', 'claw', 'bracket']
   /** Sanitize remembered wizard prefs read back from localStorage. */
   function sanitizePrefs (raw) {
@@ -110,5 +126,5 @@
     }
   }
 
-  return { parseEntries: parseEntries, rosterError: rosterError, rangeCount: rangeCount, clampWinners: clampWinners, chatPost: chatPost, secondsUntil: secondsUntil, sanitizePrefs: sanitizePrefs, MODES: MODES }
+  return { parseEntries: parseEntries, twitchEnters: twitchEnters, rosterError: rosterError, rangeCount: rangeCount, clampWinners: clampWinners, chatPost: chatPost, secondsUntil: secondsUntil, sanitizePrefs: sanitizePrefs, MODES: MODES }
 })
