@@ -679,10 +679,68 @@
     return { ok: commitOk && idOk && replayOk && standingsOk, checks, winners }
   }
 
+  /**
+   * Turn the manual verifier form's fields into the same receipt-shaped
+   * params the JSON-receipt verifier uses, so both paths compute the Draw ID
+   * identically (one-prize-per-person rule and seed source included).
+   *
+   * fields: { serverSeed, clientSeed, nonce, mode, winnerCount, alternates,
+   *   draws, rosterText, rosterKind: 'list'|'tickets', onePrize: bool,
+   *   seedSource: 'manual'|'drand', drandRound, drandChain, maxEntries }
+   * `rosterKind:'list'` accepts one entry per line, or a single "a-b" range.
+   * `rosterKind:'tickets'` accepts "holder, count" (or "holder x count") lines.
+   */
+  function paramsFromFields (f) {
+    const lines = String(f.rosterText || '').split(/\r?\n/).map(s => s.trim()).filter(s => s.length)
+    const max = f.maxEntries || 200000
+    const p = {
+      version: 'fairdraw-2',
+      mode: f.mode,
+      winnerCount: parseInt(f.winnerCount, 10) || 1,
+      alternates: parseInt(f.alternates, 10) || 0,
+      draws: parseInt(f.draws, 10) || 1,
+      serverSeed: String(f.serverSeed || '').trim().toLowerCase(),
+      clientSeed: f.clientSeed == null ? '' : String(f.clientSeed),
+      nonce: parseInt(f.nonce, 10) || 0,
+      groupBy: 'none'
+    }
+    if (f.rosterKind === 'tickets') {
+      const entries = []
+      for (const t of lines) {
+        const m = t.match(/^(.*?)\s*[,x]\s*(\d+)\s*$/i)
+        const e = m ? { holder: m[1].trim(), entries: parseInt(m[2], 10) } : { holder: t, entries: 1 }
+        if (e.holder.length && e.entries > 0) entries.push(e)
+      }
+      const total = entries.reduce((a, e) => a + e.entries, 0)
+      if (total > max) throw new Error('that roster is larger than ' + max + ' entries')
+      p.roster = { kind: 'tickets', entries }
+      if (f.onePrize) p.groupBy = 'holder'
+    } else {
+      const m = lines.length === 1 && lines[0].match(/^(\d+)\s*-\s*(\d+)$/)
+      if (m) {
+        let a = parseInt(m[1], 10); let b = parseInt(m[2], 10)
+        if (b < a) { const t = a; a = b; b = t }
+        if (b - a + 1 > max) throw new Error('that range is larger than ' + max + ' entries')
+        p.roster = { kind: 'range', from: a, to: b }
+      } else {
+        p.contestants = lines
+      }
+    }
+    if (f.seedSource === 'drand') {
+      p.entropy = { source: 'drand', chain: f.drandChain || DRAND_QUICKNET, round: parseInt(f.drandRound, 10) }
+    } else {
+      p.entropy = { source: 'manual' }
+    }
+    p.commit = sha256Hex(p.serverSeed)
+    p.drawId = drawId(p.commit, p.mode, p.winnerCount, p.roster || p.contestants,
+      p.alternates, p.version, p.groupBy, p.draws, p.entropy)
+    return p
+  }
+
   return {
     sha256, sha256Hex, hmacSha256, toHex, utf8,
     randomSeedHex, FairRng,
-    MODES, drawId, run, verifyReceipt, makeTickets, holderOf, makeRange, rosterKey, resolveRoster,
+    MODES, drawId, run, verifyReceipt, paramsFromFields, makeTickets, holderOf, makeRange, rosterKey, resolveRoster,
     entropyKey, drandRoundAt, drandRoundTime,
     DRAND: { chain: DRAND_QUICKNET, genesis: DRAND_GENESIS, period: DRAND_PERIOD },
     constants: { RPG_HP, RPG_MISS_PCT, RPG_CRIT_PCT, RPG_ROUND_CAP, FINISHERS, VERBS }
