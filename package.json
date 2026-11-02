@@ -1,0 +1,10 @@
+{
+  "name": "fair-draw",
+  "version": "1.0.0",
+  "description": "Provably-fair winner picker: static offline page with commit-reveal and a free, auditable verifier.",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test": "node test.js && node verify.js --selftest && node verify.js sample-receipt.json && node verify.js beacon-receipt.json"
+  }
+}

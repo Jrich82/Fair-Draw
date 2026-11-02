@@ -20,6 +20,22 @@ chance in all three. Pick whichever one your audience will enjoy watching.
 
 ---
 
+## Verify online
+
+Once GitHub Pages is on, the page (host + built-in verifier) is served at:
+
+**https://jrich82.github.io/Fair-Draw/**
+
+It is the same `index.html` from the repo root; all paths are relative, so it
+works identically from `file://`, any static server, or Pages. To turn it on:
+
+1. Open the repo on GitHub → **Settings** → **Pages** (left sidebar, under *Code and automation*).
+2. Under **Build and deployment** → **Source**, choose **Deploy from a branch**.
+3. Set **Branch** to `main` and folder to **`/ (root)`**, then click **Save**.
+4. Wait a minute or two; the URL above appears at the top of the Pages screen.
+
+The repo includes an empty `.nojekyll` file so Pages serves the files as-is.
+
 ## Quick start
 
 It is a static page. Double-click `index.html` and it works.
@@ -414,3 +430,9 @@ Verify tab or `node verify.js`.
 If you want to audit this in Python, Rust, Go or anything else, the exact
 byte-level specification — encodings, separators, RNG consumption order per
 game mode, and computed test vectors — is in [PROTOCOL.md](PROTOCOL.md).
+
+
+## License
+
+MIT — see [LICENSE](LICENSE). The engine, the CLI verifier and the protocol
+stay free and auditable so anyone can check a draw.

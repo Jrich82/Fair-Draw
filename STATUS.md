@@ -1,6 +1,6 @@
 # FairDraw — status
 
-Last updated 2026-08-19.
+Last updated 2026-11-01.
 
 A provably-fair winner picker. Static page, zero dependencies, works offline
 from `file://`. Commit–reveal: publish `SHA-256(serverSeed)` plus a Draw ID
@@ -16,7 +16,7 @@ node test.js
 node verify.js beacon-receipt.json
 ```
 
-Open `index.html` directly, or serve the folder. **105/105 tests pass.**
+Open `index.html` directly, or serve the folder. **109/109 tests pass** (`npm test` runs tests, selftest and both sample receipts).
 
 ## Files
 
@@ -25,7 +25,7 @@ Open `index.html` directly, or serve the folder. **105/105 tests pass.**
 | `engine.js` | single source of truth — SHA-256, HMAC, the byte stream, all three games. Pure, synchronous, no dependencies, no network |
 | `index.html` | the app: setup, three animated draws, verifier |
 | `verify.js` | independent CLI verifier (`node verify.js receipt.json`) |
-| `test.js` | 105 tests including chi-square uniformity and NIST vectors |
+| `test.js` | 109 tests including chi-square uniformity and NIST vectors |
 | `PROTOCOL.md` | byte-level spec for reimplementing the verifier elsewhere |
 | `README.md` | operator guide |
 | `research/` | four research passes + `00-SYNTHESIS.md` (the build plan) |
@@ -84,3 +84,11 @@ See `research/02-legal-compliance.md`. General information, not legal advice.
 `engine.js` is loaded as `engine.js?v=2`. Browsers cache subresources
 aggressively; a stale copy once made a test pass against code no longer on
 disk. The dev server sends no-cache headers for this reason.
+
+
+## 2026-11-01 — fix-first polish
+
+- drand beacon is now the default seed source; typed seeds show a "announce publicly first" warning and are locked after the first run (change requires *Start over*).
+- Manual verifier form now builds params via `engine.paramsFromFields` (same path as receipts): roster type, one-prize-per-person and seed source/drand round are inputs, so honest ticket/one-prize and drand draws verify.
+- Copy button falls back to a visible, pre-selected text box with "Copy failed — select and copy manually".
+- GitHub Pages ready (`.nojekyll`, relative paths, README "Verify online"); MIT LICENSE; `package.json` test script.
