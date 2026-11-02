@@ -10,6 +10,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="stylesheet" href="fun.css">
+<link rel="stylesheet" href="wizard.css">
 <style>
 :root{
   --bg:#07080d; --panel:#10131c; --panel-2:#161a26; --line:#232a3a;
@@ -742,7 +743,7 @@ $('lock').onclick = function () {
   // Aim ~90s ahead: long enough that the round cannot already be known,
   // short enough that nobody is standing around waiting for it.
   S.entropy = { source: 'drand', chain: F.DRAND.chain,
-                round: F.drandRoundAt(Math.floor(Date.now() / 1000) + 90) };
+                round: F.drandRoundAt(Math.floor(Date.now() / 1000) + (S.drandLead || 90)) };
   // A numeric range commits as "range:1-10000" instead of its expansion, so
   // the commitment stays readable and the receipt stays small.
   if (S.src === 'numbers') {
@@ -1101,6 +1102,7 @@ function finish() {
   if (alts.length) logLine('alternates, in order: ' + alts.join(', '), 'crit');
   blip(660, .1, .05); at(120, function () { blip(880, .16, .05); });
   if (window.FunPack) window.FunPack.onFinish();
+  if (window.FairDrawWizard) window.FairDrawWizard.onFinish();
 }
 
 /* --------------------------- mode: wheel -------------------------- */
@@ -1833,6 +1835,8 @@ $('doverify-fields').onclick = function () {
 window.FairDrawUI = {
   S: S, $: $, at: at, logLine: logLine, finish: finish, clearTimers: clearTimers, blip: blip,
   refreshSize: refreshSize, show: show, color: color,
+  /* Easy-setup wizard drives the same controls; these are read-only helpers. */
+  fetchDrandRound: fetchDrandRound, setSeedSource: setSeedSource, modeLabel: modeLabel,
   /* OBS / shared replay of an already-revealed receipt. Verifies first. */
   replayReceipt: function (r, visual) {
     var v = F.verifyReceipt(r);
@@ -1853,5 +1857,7 @@ $('hash-in').oninput = function () {
 })();
 </script>
 <script src="fun.js"></script>
+<script src="easy.js"></script>
+<script src="wizard.js"></script>
 </body>
 </html>

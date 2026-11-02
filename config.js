@@ -10,7 +10,7 @@
     NAME: 'Fair-Draw',
     SHORT_NAME: 'Fair-Draw',
     TAGLINE: 'provably fair winner picker',
-    VERSION: '1.1.0',
+    VERSION: '1.2.0',
     SITE: 'https://jrich82.github.io/Fair-Draw/'
   };
   if (typeof module === 'object' && module.exports) module.exports = APP;
