@@ -1,9 +1,12 @@
 /* Fair-Draw service worker: offline cache of the static app only.
-   Bump VERSION whenever any cached file changes. Network responses from
-   drand, Twitch or any other origin are NEVER cached. */
-const VERSION = 'fairdraw-v1'
+   The cache key derives from APP_CONFIG.VERSION in config.js (the single
+   version constant) — bump it there whenever any cached file changes.
+   `npm run check` fails if ASSETS lists a file that does not exist.
+   Network responses from drand, Twitch or any other origin are NEVER cached. */
+importScripts('config.js')
+const VERSION = 'app-cache-v' + self.APP_CONFIG.VERSION
 const ASSETS = [
-  './', 'index.html', 'engine.js', 'engine.js?v=3', 'visual.js', 'fun.js', 'fun.css',
+  './', 'index.html', 'config.js', 'engine.js', 'engine.js?v=3', 'visual.js', 'fun.js', 'fun.css',
   'vendor/qrcode.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-192.png',
   'icons/maskable-512.png', 'icons/apple-touch-icon.png'

@@ -485,3 +485,22 @@ game mode, and computed test vectors — is in [PROTOCOL.md](PROTOCOL.md).
 
 MIT — see [LICENSE](LICENSE). The engine, the CLI verifier and the protocol
 stay free and auditable so anyone can check a draw.
+
+## Renaming the product / bumping the version
+
+The display name is **not** hard-coded. Change it in one place:
+
+1. Edit `config.js` → `NAME` (and `SHORT_NAME`, `SITE` if the URL changes).
+   It feeds the page title, header logo, footer, winner card and share sheet.
+2. Run `npm run sync` to copy the name into `manifest.webmanifest` (the PWA name).
+3. Bump `VERSION` in `config.js` on any release: the service-worker cache key
+   (`sw.js`) derives from it, so installed copies pick up the new files.
+
+`npm run check` (also part of `npm test`) fails if the manifest name drifts from
+`config.js`, or if `sw.js` pre-caches a file that does not exist.
+Icons are name-free (pine tree + check mark); regenerate with
+`python3 scripts/make-icons.py` (needs Pillow).
+
+Note: internal protocol identifiers such as `fairdraw-2` (Draw ID / receipt
+version) are deliberately **not** tied to the display name — changing them would
+break verification of existing receipts.

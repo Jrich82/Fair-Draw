@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FairDraw — provably fair winner picker</title>
+<title>Fair-Draw — provably fair winner picker</title>
+<script src="config.js"></script>
 <meta name="theme-color" content="#07080d">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -222,7 +223,7 @@ code{font-family:var(--mono);font-size:12px;color:var(--gold);background:#0b0e16
 
 <header>
   <div>
-    <div class="logo"><b>FAIR</b><i>DRAW</i></div>
+    <div class="logo" id="app-logo"><b>FAIR</b><i>DRAW</i></div>
     <div class="tag">commit &rarr; reveal &rarr; anyone can recheck the result</div>
   </div>
   <nav>
@@ -525,6 +526,11 @@ Harper</textarea>
 (function () {
 'use strict';
 var F = window.FairDraw;
+var APP = window.APP_CONFIG || { NAME: 'Fair-Draw', TAGLINE: 'provably fair winner picker' };
+document.title = APP.NAME + ' — ' + APP.TAGLINE;
+(function () { var m = APP.NAME.match(/^(.+?)[- ](.+)$/), lg = document.getElementById('app-logo'); if (!lg) return;
+  lg.innerHTML = ''; var b = document.createElement('b'), i = document.createElement('i');
+  b.textContent = (m ? m[1] : APP.NAME).toUpperCase(); i.textContent = m ? m[2].toUpperCase() : ''; lg.appendChild(b); lg.appendChild(i); })();
 var $ = function (id) { return document.getElementById(id); };
 
 /* ----------------------------- state ----------------------------- */
@@ -1055,6 +1061,7 @@ function play() {
   $('log').innerHTML = '';
   $('banner').classList.remove('show');
   $('revealed').classList.add('hidden');
+  if (!(S.receipt && S.receipt.serverSeed)) S.verified = false;
   $('stage').innerHTML = '';
   logLine('client seed  ' + S.receipt.clientSeed, 'hl');
   logLine('nonce        ' + S.receipt.nonce, 'hl');
@@ -1469,6 +1476,7 @@ $('reveal').onclick = function () {
   $('r-nonce').textContent = S.receipt.nonce;
   $('revealed').classList.remove('hidden');
   $('reveal').disabled = true;
+  try { S.verified = !!F.verifyReceipt(S.receipt).ok; } catch (e) { S.verified = false; }
   logLine('');
   logLine('server seed revealed: ' + S.serverSeed, 'hl');
 };
@@ -1833,7 +1841,7 @@ window.FairDrawUI = {
     S.contestants = F.resolveRoster(r);
     S.winnerCount = r.winnerCount; S.alternates = r.alternates || 0;
     S.commit = r.commit; S.drawId = r.drawId; S.serverSeed = r.serverSeed;
-    S.result = F.run(r); S.receipt = r;
+    S.result = F.run(r); S.receipt = r; S.verified = true;
     show('draw'); play();
   }
 };

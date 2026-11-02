@@ -15,7 +15,8 @@ var S = UI.S, $ = UI.$;
 var LS = { get: function (k, d) { try { var v = localStorage.getItem('fd.' + k); return v === null ? d : v; } catch (e) { return d; } },
            set: function (k, v) { try { localStorage.setItem('fd.' + k, v); } catch (e) {} } };
 var params = new URLSearchParams(location.search);
-var SITE = 'https://jrich82.github.io/Fair-Draw/';
+var APP = window.APP_CONFIG || { NAME: 'Fair-Draw', SITE: 'https://jrich82.github.io/Fair-Draw/' };
+var SITE = APP.SITE;
 function el(tag, attrs, kids) {
   var e = document.createElement(tag);
   for (var k in attrs || {}) { if (k === 'text') e.textContent = attrs[k]; else if (k === 'html') e.innerHTML = attrs[k]; else e.setAttribute(k, attrs[k]); }
@@ -58,7 +59,7 @@ var SFX = {
 /* ----------------------------- confetti ---------------------------- */
 function confetti(seedStr) {
   var cv = $('confetti') || document.body.appendChild(el('canvas', { id: 'confetti' }));
-  var ctx = cv.getContext('2d'); cv.width = innerWidth; cv.height = innerHeight;
+  var ctx = cv.getContext('2d'); cv.width = document.documentElement.clientWidth || innerWidth; cv.height = document.documentElement.clientHeight || innerHeight;
   var r = mulberry(parseInt((seedStr || '1').slice(0, 8), 16) || 1);
   var cols = ['#ffc84a', '#22e0d6', '#ff3d81', '#43d17a', '#ffffff', '#ff7a1a'];
   var ps = []; for (var i = 0; i < 220; i++) ps.push({ x: r() * cv.width, y: -r() * cv.height * .6, vx: (r() - .5) * 3, vy: 2 + r() * 4, s: 4 + r() * 6, a: r() * 6, va: (r() - .5) * .3, c: cols[i % cols.length] });
@@ -122,7 +123,8 @@ function countdown(host, t0, fn) {
 function finalTwo(host, p, t, onNearMiss, onWin) {
   var a = p.order[0], b = p.order[1];
   UI.at(t, function () { overlay(host, 'FINAL TWO<div class="vs">' + esc(a) + ' &nbsp;vs&nbsp; ' + esc(b) + '</div>', 'small ft'); SFX.whoosh(); UI.logLine('— FINAL TWO: ' + a + ' vs ' + b + ' —', 'rnd'); });
-  UI.at(t + 1800, function () { var o = host.querySelector('.ft'); if (o) o.remove(); host.classList.add('slowmo'); if (onNearMiss) onNearMiss(b); SFX.drum(1.6); });
+  UI.at(t + 1500, function () { var o = host.querySelector('.ft'); if (o) o.classList.add('fade'); });
+  UI.at(t + 1900, function () { var o = host.querySelector('.ft'); if (o) o.remove(); host.classList.add('slowmo'); if (onNearMiss) onNearMiss(b); SFX.drum(1.6); });
   UI.at(t + 3600, function () { UI.logLine(p.quips[p.quips.length - 1]); if (onWin) onWin(a, b); SFX.thud(); });
   UI.at(t + 4600, function () { host.classList.remove('slowmo'); UI.finish(); });
 }
@@ -333,6 +335,10 @@ window.FunPack = {
 })();
 
 /* --------------------------- Winner card --------------------------- */
+function cardVerified() {
+  if (!S.receipt || !S.receipt.serverSeed || !S.verified) return false;
+  try { return !!window.FairDraw.verifyReceipt(S.receipt).ok; } catch (e) { return false; }
+}
 function winnerCard() {
   var W = 1200, H = 630, c = el('canvas', { width: W, height: H }), x = c.getContext('2d');
   var css = getComputedStyle(document.documentElement);
@@ -340,7 +346,7 @@ function winnerCard() {
   var g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, v('--bg', '#07080d')); g.addColorStop(1, v('--panel-2', '#161a26'));
   x.fillStyle = g; x.fillRect(0, 0, W, H);
   x.strokeStyle = v('--gold', '#ffc84a'); x.lineWidth = 10; x.strokeRect(20, 20, W - 40, H - 40);
-  x.textAlign = 'center'; x.fillStyle = v('--cyan', '#22e0d6'); x.font = 'bold 40px sans-serif'; x.fillText('FAIR-DRAW  ·  WINNER', W / 2, 110);
+  x.textAlign = 'center'; x.fillStyle = v('--cyan', '#22e0d6'); x.font = 'bold 40px sans-serif'; x.fillText(APP.NAME.toUpperCase() + '  ·  WINNER', W / 2, 110);
   var name = S.result.winners[0], fs = 110; x.font = 'bold ' + fs + 'px sans-serif';
   while (x.measureText(name).width > W - 140 && fs > 30) { fs -= 6; x.font = 'bold ' + fs + 'px sans-serif'; }
   x.fillStyle = v('--gold', '#ffc84a'); x.fillText(name, W / 2, 270);
@@ -350,8 +356,10 @@ function winnerCard() {
   x.font = '26px sans-serif'; x.fillStyle = v('--dim', '#aaa');
   x.fillText(new Date(S.receipt.drawnAt || Date.now()).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) + '   ·   Draw ID ' + S.drawId.slice(0, 12), W / 2, 450);
   // badge
-  x.fillStyle = v('--good', '#43d17a'); x.beginPath(); x.roundRect ? x.roundRect(W / 2 - 170, 480, 340, 56, 28) : x.rect(W / 2 - 170, 480, 340, 56); x.fill();
-  x.fillStyle = '#000'; x.font = 'bold 28px sans-serif'; x.fillText('✓ Verified fair', W / 2, 518);
+  // badge: "Verified fair" only once the server seed is revealed AND the receipt re-verifies
+  var ok = cardVerified();
+  x.fillStyle = ok ? v('--good', '#43d17a') : v('--gold', '#ffc84a'); x.beginPath(); x.roundRect ? x.roundRect(W / 2 - 190, 480, 380, 56, 28) : x.rect(W / 2 - 190, 480, 380, 56); x.fill();
+  x.fillStyle = '#000'; x.font = 'bold 28px sans-serif'; x.fillText(ok ? '✓ Verified fair' : '⏳ Pending reveal', W / 2, 518);
   x.fillStyle = v('--dim', '#aaa'); x.font = '22px sans-serif'; x.fillText(SITE + '  ·  free-entry giveaway', W / 2, 585);
   return c;
 }
@@ -366,7 +374,7 @@ function winnerCard() {
   };
   var wrap = el('div', { style: 'flex:0 0 auto;display:flex;gap:6px' }, [prize, btn]);
   row.appendChild(wrap);
-  window.FunPack.winnerCard = winnerCard;
+  window.FunPack.winnerCard = winnerCard; window.FunPack.cardVerified = cardVerified;
 })();
 
 /* ----------------------- Share / PWA / OBS footer ------------------ */
@@ -378,15 +386,16 @@ function copy(text, b, label) {
 }
 (function footer() {
   var f = el('footer', { 'class': 'fun-footer', id: 'fun-footer' });
-  f.innerHTML = '<p><span class="free">Free-entry giveaways only.</span> No purchase, payment or wager may be required to enter. Not for raffles, lotteries or gambling. Check your local rules.</p>' +
+  f.innerHTML = '<p><b class="app-name"></b> &middot; v' + esc(APP.VERSION || '') + '</p><p><span class="free">Free-entry giveaways only.</span> No purchase, payment or wager may be required to enter. Not for raffles, lotteries or gambling. Check your local rules.</p>' +
     '<h3 style="margin:14px 0 4px">Share &amp; install</h3>';
+  f.querySelector('.app-name').textContent = APP.NAME;
   var r = el('div', { 'class': 'share-row' });
   var bCopy = el('button', { 'class': 'btn small', id: 'share-copy', text: 'Copy link' });
   var bShare = el('button', { 'class': 'btn small', id: 'share-native', text: 'Share…' });
   var bObs = el('button', { 'class': 'btn small', id: 'share-obs', text: 'OBS link' });
   var bInst = el('button', { 'class': 'btn small primary hidden', id: 'install-btn', text: 'Install app' });
   bCopy.onclick = function () { copy(pageUrl(), bCopy, 'Copy link'); };
-  bShare.onclick = function () { if (navigator.share) navigator.share({ title: 'Fair-Draw', text: 'Provably fair giveaway picker', url: pageUrl() }).catch(function () {}); else copy(pageUrl(), bShare, 'Share…'); };
+  bShare.onclick = function () { if (navigator.share) navigator.share({ title: APP.NAME, text: 'Provably fair giveaway picker', url: pageUrl() }).catch(function () {}); else copy(pageUrl(), bShare, 'Share…'); };
   bObs.onclick = function () {
     var u = new URL(pageUrl()); u.searchParams.set('obs', '1'); if (S.visual) u.searchParams.set('show', S.visual);
     var t = document.documentElement.getAttribute('data-theme'); if (t) u.searchParams.set('theme', t);
@@ -416,6 +425,9 @@ if (/^https?:$/.test(location.protocol)) { // file:// blocks manifest fetches (C
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
   navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function () {});
 }
+
+/* Skip ends the show immediately: clear any lingering countdown / final-two banner. */
+(function () { var sk = $('skip'); if (sk) sk.addEventListener('click', function () { document.querySelectorAll('#stage .fun-overlay.ft, #stage .fun-overlay.cd').forEach(function (o) { o.remove(); }); }); })();
 
 /* ------------------------------- OBS ------------------------------- */
 if (params.get('obs') === '1') {

@@ -66,3 +66,27 @@ html.obs header,html.obs #p-setup,html.obs #p-verify,html.obs .controls,html.obs
 html.obs .stage,html.obs .stagewrap{background:transparent!important;border:none!important;box-shadow:none!important}
 html.obs .stagewrap{grid-template-columns:1fr!important}
 html.obs.obs-chrome header,html.obs.obs-chrome .controls{display:flex!important}
+
+/* Final-two: a compact banner pinned to the top of the stage (fades in/out)
+   instead of a full-stage overlay, so spinning reels / lanes stay readable. */
+.fun-overlay.ft{inset:auto 0 auto 0;top:6px;padding:6px 10px;font-size:22px;line-height:1.2;
+  background:rgba(0,0,0,.72);border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);animation:ftin .35s ease-out}
+.fun-overlay.ft .vs{font-size:14px;color:var(--ink);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fun-overlay.ft.fade{opacity:0;transition:opacity .4s}
+@keyframes ftin{0%{opacity:0;transform:translateY(-10px)}100%{opacity:1;transform:none}}
+.slots{padding-top:84px}
+
+/* Mobile (<=600px): no horizontal overflow, 36px+ touch targets */
+#confetti{width:100%;height:100%}
+@media(max-width:600px){
+  html,body{overflow-x:hidden}  /* banner pop overshoot + fixed confetti must never widen the mobile viewport */
+  .funbar select,.funbar .btn,.controls .btn,.share-row .btn,.banner .btn{min-height:36px;min-width:36px}
+  .controls{flex-wrap:wrap}
+  #banner .row>div{flex:1 1 auto!important;max-width:100%}
+  #banner .row>div[style*="display:flex"]{flex-wrap:wrap}
+  #card-prize{max-width:100%!important;min-width:0;flex:1 1 160px}
+  #b-who{overflow-wrap:anywhere;word-break:break-word}
+  .fun-stage{min-height:300px}
+  .slots{gap:6px;padding-left:4px;padding-right:4px}
+  .reel div{font-size:14px}
+}

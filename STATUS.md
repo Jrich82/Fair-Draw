@@ -16,7 +16,7 @@ node test.js
 node verify.js beacon-receipt.json
 ```
 
-Open `index.html` directly, or serve the folder. **109/109 tests pass** (`npm test` runs tests, selftest and both sample receipts).
+Open `index.html` directly, or serve the folder. **115/115 tests pass** (`npm test` runs tests, selftest and both sample receipts).
 
 ## Files
 
