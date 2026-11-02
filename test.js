@@ -1162,6 +1162,62 @@ test('form: shipped sample receipts still verify', function () {
 })
 
 /* ------------------------------------------------------------------ *
+ * Presentation layer (visual.js) — must never change winners          *
+ * ------------------------------------------------------------------ */
+const FairShow = require('./visual.js')
+function showFor (n, cs, w, a) {
+  const c = Array.from({ length: n }, (_, i) => 'P' + i)
+  const r = FairDraw.run({ mode: 'wheel', contestants: c, serverSeed: SEED_A, clientSeed: cs, nonce: 0, winnerCount: w, alternates: a })
+  return { c, r, p: FairShow.plan({ serverSeed: SEED_A, clientSeed: cs, nonce: 0, contestants: c, standings: r.standings }) }
+}
+test('show: order starts with the engine standings verbatim', function () {
+  for (const n of [2, 3, 7, 16, 33]) {
+    const { r, p } = showFor(n, 'seed' + n, 1, Math.min(2, n - 1))
+    assertEqual(JSON.stringify(p.order.slice(0, r.standings.length)), JSON.stringify(r.standings), 'prefix n=' + n)
+    assertEqual(p.order.length, n, 'everyone placed')
+    assertEqual(new Set(p.order).size, n, 'no duplicates')
+  }
+})
+test('show: elimination order is the reverse, champion never eliminated', function () {
+  const { r, p } = showFor(10, 'elim', 2, 1)
+  assertEqual(p.eliminations.length, 9, 'n-1 eliminations')
+  assert(p.eliminations.indexOf(r.winners[0]) === -1, 'winner eliminated')
+  assertEqual(p.eliminations[p.eliminations.length - 1], r.standings[1], 'final two loser is place 2')
+})
+test('show: deterministic and domain-separated from the result stream', function () {
+  const a = showFor(12, 'det', 1, 0).p, b = showFor(12, 'det', 1, 0).p
+  assertEqual(JSON.stringify(a), JSON.stringify(b), 'replay identical')
+  const c = showFor(12, 'det2', 1, 0).p
+  assert(JSON.stringify(a.order) !== JSON.stringify(c.order) || JSON.stringify(a.quips) !== JSON.stringify(c.quips), 'seed affects show')
+  assertEqual(FairShow.DOMAIN, 'fairdraw-visual-1|', 'domain tag pinned')
+})
+test('show: commentary picker uses the pinned list and names the entrant', function () {
+  const { p } = showFor(9, 'quips', 1, 0)
+  p.quips.forEach((q, i) => {
+    assert(q.indexOf(p.eliminations[i]) !== -1, 'quip names entrant')
+    assert(FairShow.QUIPS.some(t => t.split('{name}').join(p.eliminations[i]) === q), 'quip from list')
+  })
+})
+test('show: bracket champion is always the engine winner, byes never meet', function () {
+  for (const n of [2, 3, 5, 8, 9, 17, 64]) {
+    const { r, p } = showFor(n, 'br' + n, 1, 0)
+    const last = p.bracket[p.bracket.length - 1]
+    assertEqual(last.length, 1, 'one final')
+    assertEqual(last[0].winner, r.winners[0], 'champion n=' + n)
+    p.bracket[0].forEach(m => assert(m.a !== null || m.b !== null, 'bye vs bye'))
+    const seen = new Set(); p.bracket[0].forEach(m => { if (m.a) seen.add(m.a); if (m.b) seen.add(m.b) })
+    assertEqual(seen.size, n, 'everyone seeded once')
+  }
+})
+test('show: shipped receipts are unaffected (plan does not touch the result stream)', function () {
+  const r = JSON.parse(require('fs').readFileSync(require('path').join(__dirname, 'sample-receipt.json'), 'utf8'))
+  const before = JSON.stringify(FairDraw.run(r).winners)
+  FairShow.plan({ serverSeed: r.serverSeed, clientSeed: r.clientSeed, nonce: r.nonce, contestants: FairDraw.resolveRoster(r), standings: r.standings || r.winners })
+  assertEqual(JSON.stringify(FairDraw.run(r).winners), before, 'winners unchanged')
+  assert(FairDraw.verifyReceipt(r).ok, 'still verifies')
+})
+
+/* ------------------------------------------------------------------ *
  * Summary                                                             *
  * ------------------------------------------------------------------ */
 

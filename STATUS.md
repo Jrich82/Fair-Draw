@@ -92,3 +92,14 @@ disk. The dev server sends no-cache headers for this reason.
 - Manual verifier form now builds params via `engine.paramsFromFields` (same path as receipts): roster type, one-prize-per-person and seed source/drand round are inputs, so honest ticket/one-prize and drand draws verify.
 - Copy button falls back to a visible, pre-selected text box with "Copy failed — select and copy manually".
 - GitHub Pages ready (`.nojekyll`, relative paths, README "Verify online"); MIT LICENSE; `package.json` test script.
+
+
+## 2026-11-01 — fun pack (branch `feature/fun-pack`)
+
+- New visual modes over the wheel engine: Horse Race, Battle Royale, Plinko, Slot Machine, Claw Machine, Bracket. Protocol unchanged; `visual.js` derives elimination order / commentary / bracket from a domain-separated stream (PROTOCOL.md "Presentation layer"); `verify.js --show`.
+- Suspense (countdown, final two, slow-mo near miss), Web Audio SFX + mute, confetti, optional speech hype.
+- Themes (Retro Arcade, Casino, Winter Cabin, RuralDegen) via picker / localStorage / `?theme=`.
+- Twitch anonymous read-only `!enter` roster join with lock.
+- Winner card PNG; footer with free-entry note, share/copy/QR, PWA install (manifest, icons, `sw.js`), OBS `?obs=1` transparent mode with verified receipt replay.
+- Tests: +6 show tests (115 total). Headless Chrome smoke: all 9 modes × 7 and 40 entrants from file://, no console errors.
+- Known gaps: Twitch join not tested against live chat; service worker/install not tested on the deployed site; sounds/speech not listened to; mobile layout only lightly checked.
