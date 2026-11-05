@@ -1265,6 +1265,59 @@ test('easy: remembered prefs are sanitized', function () {
   assertEqual(FairEasy.sanitizePrefs(null).winners, 1)
 })
 
+test('easy: zero/negative ticket counts are flagged, not turned into names', function () {
+  const r = FairEasy.parseEntries('Ada, -3\nBo')
+  assertEqual(r.kind, 'tickets'); assertEqual(r.count, 1)
+  assertEqual(JSON.stringify(r.invalid), JSON.stringify(['Ada']))
+  assert(FairEasy.rosterError(r).indexOf('Ada') !== -1, 'names the bad line')
+  const z = FairEasy.parseEntries('Ada, 0\nBo, 0')
+  assertEqual(z.invalid.length, 2)
+  // names containing x and a hyphenated number are still plain names
+  const n = FairEasy.parseEntries('Rex-3\nMax')
+  assertEqual(n.kind, 'names'); assertEqual(n.count, 2)
+})
+
+test('easy: rosterError gives a specific plain-English reason', function () {
+  assert(/at least 2 names/.test(FairEasy.rosterError(FairEasy.parseEntries(''))), 'empty')
+  assert(/at least 2 names/.test(FairEasy.rosterError(FairEasy.parseEntries('  \n , ,'))), 'blank/commas only')
+  assert(/Only 1 entry/.test(FairEasy.rosterError(FairEasy.parseEntries('Ada'))), 'one')
+  assert(/duplicates are merged/.test(FairEasy.rosterError(FairEasy.parseEntries('Ada\nada\nADA'))), 'dupes')
+  assertEqual(FairEasy.rosterError(FairEasy.parseEntries('Ada\nBo')), '')
+  assert(/both ends/.test(FairEasy.rosterError({ kind: 'range', count: 0 })), 'empty range')
+  assert(/at least 2 numbers/.test(FairEasy.rosterError({ kind: 'range', count: 1 })), 'range of one')
+  assert(/cap/.test(FairEasy.rosterError({ kind: 'range', count: 1e9 })), 'over cap')
+  assertEqual(FairEasy.rosterError({ kind: 'range', count: 100 }), '')
+})
+
+test('easy: Twitch IRC frames -> !enter logins (mocked chat)', function () {
+  const f = ':ada!ada@ada.tmi.twitch.tv PRIVMSG #chan :!enter\r\n' +
+    ':bo!bo@bo.tmi.twitch.tv PRIVMSG #chan :hello !enter\r\n' +
+    '@badge-info=;display-name=Cass :cass!cass@cass.tmi.twitch.tv PRIVMSG #chan :!ENTER please\r\n' +
+    ':dex!dex@dex.tmi.twitch.tv PRIVMSG #chan :!entertain\r\n' +
+    ':evil<b>!x@x PRIVMSG #chan :!enter\r\n'
+  assertEqual(JSON.stringify(FairEasy.twitchEnters(f).enters), JSON.stringify(['ada', 'cass']))
+  assert(FairEasy.twitchEnters('PING :tmi.twitch.tv\r\n').ping, 'ping')
+  assertEqual(FairEasy.twitchEnters(null).enters.length, 0)
+})
+
+test('themes: hint/tag (--faint) and --dim text meet WCAG AA 4.5:1 on every theme', function () {
+  const fs = require('fs'), path = require('path')
+  const css = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8').match(/:root\s*\{[^}]*\}/)[0]
+  const fun = fs.readFileSync(path.join(__dirname, 'fun.css'), 'utf8')
+  function vars (block) { const o = {}; block.replace(/--([a-z0-9-]+)\s*:\s*(#[0-9a-f]{6})/gi, function (_, k, v) { o[k] = v }); return o }
+  function lum (h) { return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)).reduce((a, c, i) => a + c * [0.2126, 0.7152, 0.0722][i], 0) }
+  function ratio (a, b) { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05) }
+  const base = vars(css), themes = { default: base }
+  fun.replace(/html\[data-theme="([a-z]+)"\]\{([^}]*)\}/g, function (_, n, b) { themes[n] = Object.assign({}, base, vars(b)) })
+  assert(Object.keys(themes).length >= 5, 'found themes')
+  Object.keys(themes).forEach(function (n) {
+    const t = themes[n];
+    ['faint', 'dim'].forEach(function (fg) { ['bg', 'panel', 'panel-2'].forEach(function (bg) {
+      const r = ratio(t[fg], t[bg]); assert(r >= 4.5, n + ' --' + fg + ' on --' + bg + ' = ' + r.toFixed(2))
+    }) })
+  })
+})
+
 test('easy: easy.js has no Math.random', function () {
   assert(!/Math\.random/.test(require('fs').readFileSync(require('path').join(__dirname, 'easy.js'), 'utf8')), 'no Math.random')
 })

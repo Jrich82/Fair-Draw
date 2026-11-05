@@ -8,7 +8,7 @@
   else root.FairEasy = factory()
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict'
-  var TICKET = /^(.*?)\s*[,x]\s*(\d+)\s*$/i
+  var TICKET = /^(.*?)\s*(?:[,x]\s*(\d+)|,\s*(-\d+))\s*$/i
 
   /**
    * Parse a pasted roster. One entry per line, or comma-separated on a line.
@@ -21,19 +21,19 @@
     var isTickets = lines.some(function (l) {
       var m = l.match(TICKET); return !!(m && m[1].trim() && m[1].indexOf(',') === -1)
     })
-    var dupes = []
+    var dupes = [], invalid = []
     if (isTickets) {
       var seenT = {}, entries = []
       lines.forEach(function (l) {
         var m = l.match(TICKET), holder, n
-        if (m && m[1].trim() && m[1].indexOf(',') === -1) { holder = m[1].trim(); n = parseInt(m[2], 10) } else { holder = l; n = 1 }
-        if (!(n > 0)) return
+        if (m && m[1].trim() && m[1].indexOf(',') === -1) { holder = m[1].trim(); n = parseInt(m[2] || m[3], 10) } else { holder = l; n = 1 }
+        if (!(n > 0)) { invalid.push(holder); return }
         var k = holder.toLowerCase()
         if (seenT[k] !== undefined) { dupes.push(holder); entries[seenT[k]].entries += n; return }
         seenT[k] = entries.length; entries.push({ holder: holder, entries: n })
       })
       var total = entries.reduce(function (a, e) { return a + e.entries }, 0)
-      return { kind: 'tickets', names: entries.map(function (e) { return e.holder }), entries: entries, count: total, people: entries.length, dupes: dupes }
+      return { kind: 'tickets', names: entries.map(function (e) { return e.holder }), entries: entries, count: total, people: entries.length, dupes: dupes, invalid: invalid }
     }
     var seen = {}, names = []
     lines.forEach(function (l) {
@@ -43,7 +43,23 @@
         seen[k] = 1; names.push(n)
       })
     })
-    return { kind: 'names', names: names, entries: null, count: names.length, people: names.length, dupes: dupes }
+    return { kind: 'names', names: names, entries: null, count: names.length, people: names.length, dupes: dupes, invalid: [] }
+  }
+
+  /**
+   * Plain-English reason a roster can't be drawn yet, or '' if it is fine.
+   * r is a parseEntries() result or { kind: 'range', count }.
+   */
+  function rosterError (r, max) {
+    max = max || 200000
+    if (r.invalid && r.invalid.length) return 'Ticket counts must be whole numbers of 1 or more — check: ' + r.invalid.slice(0, 3).join(', ') + '.'
+    if (r.kind === 'range') {
+      if (r.count === 0) return 'Enter both ends of the number range.'
+      if (r.count < 2) return 'The range needs at least 2 numbers (e.g. 1 to 100).'
+    } else if (r.count === 0) return 'Add at least 2 names — one per line or separated by commas.'
+    else if (r.count < 2) return (r.dupes && r.dupes.length ? 'Only 1 unique name (duplicates are merged, ignoring case).' : 'Only 1 entry.') + ' Add at least one more.'
+    if (r.count > max) return r.count.toLocaleString('en-US') + ' entries is over the ' + max.toLocaleString('en-US') + ' cap.'
+    return ''
   }
 
   /** Count of a numeric range, order-insensitive; 0 if invalid. */
@@ -76,6 +92,22 @@
     return Math.max(0, Math.ceil(roundTimeSec - nowMs / 1000))
   }
 
+  /**
+   * Parse one raw Twitch IRC websocket frame (may hold several \r\n lines).
+   * Returns { ping: bool, enters: [login,...] } for lines whose chat message
+   * starts with !enter. Anonymous read-only; never trusts display names.
+   */
+  function twitchEnters (raw) {
+    var out = { ping: false, enters: [] }
+    String(raw || '').split(/\r?\n/).forEach(function (line) {
+      if (line.indexOf('PING') === 0) { out.ping = true; return }
+      if (line.charAt(0) === '@') line = line.slice(line.indexOf(' ') + 1) // IRCv3 tags
+      var m = line.match(/^:([a-z0-9_]+)![^ ]+ PRIVMSG #[^ ]+ :(.*)$/i)
+      if (m && /^!enter\b/i.test(m[2].trim())) out.enters.push(m[1])
+    })
+    return out
+  }
+
   var MODES = ['wheel', 'rumble', 'rpg', 'horse', 'battle', 'plinko', 'slots', 'claw', 'bracket']
   /** Sanitize remembered wizard prefs read back from localStorage. */
   function sanitizePrefs (raw) {
@@ -94,5 +126,5 @@
     }
   }
 
-  return { parseEntries: parseEntries, rangeCount: rangeCount, clampWinners: clampWinners, chatPost: chatPost, secondsUntil: secondsUntil, sanitizePrefs: sanitizePrefs, MODES: MODES }
+  return { parseEntries: parseEntries, twitchEnters: twitchEnters, rosterError: rosterError, rangeCount: rangeCount, clampWinners: clampWinners, chatPost: chatPost, secondsUntil: secondsUntil, sanitizePrefs: sanitizePrefs, MODES: MODES }
 })

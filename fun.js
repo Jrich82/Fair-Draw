@@ -321,11 +321,9 @@ window.FunPack = {
     go.textContent = 'Disconnect'; lock.disabled = false; st.textContent = 'Connecting…';
     ws.onopen = function () { ws.send('NICK justinfan' + (10000 + (Date.now() % 80000))); ws.send('JOIN #' + c); accepting = true; st.textContent = 'Listening in #' + c + ' for !enter'; };
     ws.onmessage = function (ev) {
-      String(ev.data).split('\r\n').forEach(function (line) {
-        if (line.indexOf('PING') === 0) { ws.send('PONG :tmi.twitch.tv'); return; }
-        var m = line.match(/^:([a-z0-9_]+)![^ ]+ PRIVMSG #[^ ]+ :(.*)$/i);
-        if (m && /^!enter\b/i.test(m[2].trim())) addName(m[1]);
-      });
+      var r = window.FairEasy.twitchEnters(ev.data);
+      if (r.ping) ws.send('PONG :tmi.twitch.tv');
+      r.enters.forEach(addName);
     };
     ws.onerror = function () { st.textContent = 'Twitch connection error (needs internet).'; };
     ws.onclose = function () { if (ws) stop('Disconnected from Twitch.'); };

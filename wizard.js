@@ -57,19 +57,19 @@ function screen(id) { var s = el('div', { 'class': 'wiz-screen hidden', id: 'wiz
 
 /* --------------------------- 1. Add names -------------------------- */
 var s1 = screen('1');
-var ta = el('textarea', { id: 'wiz-names', spellcheck: 'false', placeholder: 'One name per line, or commas:\nAda\nBo, Cass, Dex\nTickets work too:  Eli, 5' });
+var ta = el('textarea', { id: 'wiz-names', 'aria-label': 'Entries, one per line or comma-separated', 'aria-describedby': 'wiz-count wiz-err1', spellcheck: 'false', placeholder: 'One name per line, or commas:\nAda\nBo, Cass, Dex\nTickets work too:  Eli, 5' });
 ta.value = P.text || 'Ada\nBo\nCass\nDex\nEli\nFrankie\nGus\nHarper';
-var count = el('div', { 'class': 'wiz-count', id: 'wiz-count' });
+var count = el('div', { 'class': 'wiz-count', id: 'wiz-count', 'aria-live': 'polite' });
 var useRange = el('input', { type: 'checkbox', id: 'wiz-userange' }); useRange.checked = P.useRange;
-var rFrom = el('input', { type: 'number', id: 'wiz-from', inputmode: 'numeric' }); rFrom.value = P.from;
-var rTo = el('input', { type: 'number', id: 'wiz-to', inputmode: 'numeric' }); rTo.value = P.to;
+var rFrom = el('input', { type: 'number', id: 'wiz-from', inputmode: 'numeric', 'aria-label': 'Range start' }); rFrom.value = P.from;
+var rTo = el('input', { type: 'number', id: 'wiz-to', inputmode: 'numeric', 'aria-label': 'Range end' }); rTo.value = P.to;
 var rangeRow = el('div', { 'class': 'wiz-range' }, [rFrom, el('span', { text: 'to' }), rTo]);
 var twOn = el('input', { type: 'checkbox', id: 'wiz-twitch' }); twOn.checked = P.twitch;
-var twChan = el('input', { type: 'text', id: 'wiz-chan', placeholder: 'your Twitch channel', spellcheck: 'false', autocapitalize: 'off' }); twChan.value = P.chan;
+var twChan = el('input', { type: 'text', id: 'wiz-chan', placeholder: 'your Twitch channel', 'aria-label': 'Twitch channel', spellcheck: 'false', autocapitalize: 'off' }); twChan.value = P.chan;
 var twBtn = el('button', { 'class': 'btn', id: 'wiz-tw-go', text: 'Listen for !enter' });
 var twStat = el('div', { 'class': 'hint', id: 'wiz-tw-status' });
 var twRow = el('div', { 'class': 'wiz-tw' }, [twChan, twBtn]);
-var err1 = el('div', { 'class': 'err', id: 'wiz-err1' });
+var err1 = el('div', { 'class': 'err', id: 'wiz-err1', role: 'alert' });
 s1.appendChild(el('h2', { text: 'Who’s in?' }));
 s1.appendChild(el('p', { 'class': 'hint', text: 'Paste or type names. Order matters (it gets locked in).' }));
 s1.appendChild(ta);
@@ -78,10 +78,10 @@ s1.appendChild(rangeRow);
 s1.appendChild(el('label', { 'class': 'wiz-toggle' }, [twOn, ' 📺 Let Twitch chat type !enter']));
 s1.appendChild(twRow); s1.appendChild(twStat);
 s1.appendChild(count); s1.appendChild(err1);
-s1.appendChild(el('div', { 'class': 'wiz-nav' }, [el('button', { 'class': 'btn primary big', id: 'wiz-next1', text: 'Next →', onclick: function () { if (roster().count >= 2) go(2); else err1.textContent = 'Add at least 2 entries.'; } })]));
+s1.appendChild(el('div', { 'class': 'wiz-nav' }, [el('button', { 'class': 'btn primary big', id: 'wiz-next1', text: 'Next →', onclick: function () { var m = E.rosterError(roster()); if (!m) go(2); else { err1.textContent = m; (useRange.checked ? rFrom : ta).focus(); } } })]));
 
 function roster() {
-  if (useRange.checked) { var n = E.rangeCount(rFrom.value, rTo.value); return { kind: 'range', count: n, people: n, dupes: [] }; }
+  if (useRange.checked) { var n = E.rangeCount(rFrom.value, rTo.value); return { kind: 'range', count: n, people: n, dupes: [], invalid: [] }; }
   return E.parseEntries(ta.value);
 }
 function paint1() {
@@ -90,7 +90,7 @@ function paint1() {
   twRow.classList.toggle('hidden', !twOn.checked); twStat.classList.toggle('hidden', !twOn.checked);
   var r = roster(); err1.textContent = '';
   count.textContent = r.kind === 'tickets'
-    ? r.count + ' tickets · ' + r.people + ' people'
+    ? r.count + ' ticket' + (r.count === 1 ? '' : 's') + ' · ' + r.people + (r.people === 1 ? ' person' : ' people')
     : r.count + ' entr' + (r.count === 1 ? 'y' : 'ies');
   if (r.dupes.length) count.textContent += '  (duplicate' + (r.dupes.length > 1 ? 's' : '') + ' merged: ' + r.dupes.slice(0, 3).join(', ') + ')';
   P.text = ta.value; P.useRange = useRange.checked; P.from = parseInt(rFrom.value, 10) || 1; P.to = parseInt(rTo.value, 10) || 1;
@@ -120,13 +120,13 @@ twBtn.onclick = function () {
 /* --------------------------- 2. Pick a game ------------------------ */
 var s2 = screen('2');
 s2.appendChild(el('h2', { text: 'Pick a game' }));
-var grid = el('div', { 'class': 'wiz-games', role: 'radiogroup' });
+var grid = el('div', { 'class': 'wiz-games', role: 'radiogroup', 'aria-label': 'Game' });
 GAMES.forEach(function (g) {
   grid.appendChild(el('button', { 'class': 'wiz-game', 'data-mode': g[0], role: 'radio', 'aria-label': g[2],
     onclick: function () { P.mode = g[0]; save(); paint2(); } }, [el('span', { 'class': 'e', text: g[1] }), el('b', { text: g[2] })]));
 });
 s2.appendChild(grid);
-var wOut = el('output', { id: 'wiz-winners', text: '1' });
+var wOut = el('output', { id: 'wiz-winners', text: '1', 'aria-live': 'polite', 'aria-label': 'Number of winners' });
 function bump(d) { P.winners = E.clampWinners(P.winners + d, entrants()); save(); paint2(); }
 s2.appendChild(el('div', { 'class': 'wiz-stepper' }, [
   el('span', { text: 'Winners' }),
@@ -155,7 +155,7 @@ function paint2() {
 var s3 = screen('3');
 var summary = el('div', { 'class': 'wiz-summary', id: 'wiz-summary' });
 var startBtn = el('button', { 'class': 'btn go huge', id: 'wiz-start', text: '▶ Start' });
-var err3 = el('div', { 'class': 'err', id: 'wiz-err3' });
+var err3 = el('div', { 'class': 'err', id: 'wiz-err3', role: 'alert' });
 var adv = el('details', { 'class': 'wiz-adv', id: 'wiz-adv' });
 var advSeedSrc = el('select', { id: 'wiz-seedsrc' }, [el('option', { value: 'drand', text: 'Public drand beacon (recommended)' }), el('option', { value: 'manual', text: 'Typed seed (announce it first!)' })]);
 var advSeed = el('input', { type: 'text', id: 'wiz-manualseed', placeholder: 'seed you already announced in chat', spellcheck: 'false' });
