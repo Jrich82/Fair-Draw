@@ -9,6 +9,8 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict'
   var TICKET = /^(.*?)\s*(?:[,x]\s*(\d+)|,\s*(-\d+))\s*$/i
+  // "Name, 1.5" / "Name, +2" / "Name, 0x10": looks like a count but isn't a whole number
+  var NEAR_COUNT = /^([^,]+),\s*[+-]?\.?\d[\w.]*\s*$/
 
   /**
    * Parse a pasted roster. One entry per line, or comma-separated on a line.
@@ -26,6 +28,8 @@
       var seenT = {}, entries = []
       lines.forEach(function (l) {
         var m = l.match(TICKET), holder, n
+        var near = !(m && m[1].trim() && m[1].indexOf(',') === -1) && l.match(NEAR_COUNT)
+        if (near) { invalid.push(l); return }
         if (m && m[1].trim() && m[1].indexOf(',') === -1) { holder = m[1].trim(); n = parseInt(m[2] || m[3], 10) } else { holder = l; n = 1 }
         if (!(n > 0)) { invalid.push(holder); return }
         var k = holder.toLowerCase()
