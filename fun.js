@@ -107,7 +107,8 @@ function plan() {
   return Show.plan({ serverSeed: S.serverSeed, clientSeed: r.clientSeed, nonce: r.nonce, contestants: S.contestants, standings: S.result.standings || S.result.winners });
 }
 function stage() { var s = $('stage'); s.innerHTML = ''; var f = el('div', { 'class': 'fun-stage' }); s.appendChild(f); return f; }
-function overlay(host, text, cls) { var o = el('div', { 'class': 'fun-overlay pop ' + (cls || '') }); o.innerHTML = text; host.appendChild(o); return o; }
+// Plain text only (textContent); pass a DOM node for structured content.
+function overlay(host, content, cls) { var o = el('div', { 'class': 'fun-overlay pop ' + (cls || '') }); if (content && content.nodeType) o.appendChild(content); else o.textContent = String(content); host.appendChild(o); return o; }
 function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
 function toast(host, text) { var old = host.querySelector('.toast'); if (old) old.remove(); host.appendChild(el('div', { 'class': 'toast', text: text })); }
 
@@ -122,7 +123,7 @@ function countdown(host, t0, fn) {
 /* Final-two showdown + slow-mo near miss, then finish */
 function finalTwo(host, p, t, onNearMiss, onWin) {
   var a = p.order[0], b = p.order[1];
-  UI.at(t, function () { overlay(host, 'FINAL TWO<div class="vs">' + esc(a) + ' &nbsp;vs&nbsp; ' + esc(b) + '</div>', 'small ft'); SFX.whoosh(); UI.logLine('— FINAL TWO: ' + a + ' vs ' + b + ' —', 'rnd'); });
+  UI.at(t, function () { var ft = document.createDocumentFragment(); ft.appendChild(document.createTextNode('FINAL TWO')); ft.appendChild(el('div', { 'class': 'vs', text: a + '\u00a0 vs \u00a0' + b })); overlay(host, ft, 'small ft'); SFX.whoosh(); UI.logLine('— FINAL TWO: ' + a + ' vs ' + b + ' —', 'rnd'); });
   UI.at(t + 1500, function () { var o = host.querySelector('.ft'); if (o) o.classList.add('fade'); });
   UI.at(t + 1900, function () { var o = host.querySelector('.ft'); if (o) o.remove(); host.classList.add('slowmo'); if (onNearMiss) onNearMiss(b); SFX.drum(1.6); });
   UI.at(t + 3600, function () { UI.logLine(p.quips[p.quips.length - 1]); if (onWin) onWin(a, b); SFX.thud(); });

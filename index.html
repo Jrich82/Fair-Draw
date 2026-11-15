@@ -1408,8 +1408,9 @@ function playRpg() {
     row.className = 'fighter';
     row.innerHTML =
       '<div class="top"><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + color(i) + '"></span>' +
-      '<span>' + name.replace(/[<>&]/g, '') + '</span><span class="hpn">' + MAX + ' / ' + MAX + '</span></div>' +
+      '<span class="nm"></span><span class="hpn">' + MAX + ' / ' + MAX + '</span></div>' +
       '<div class="bar"><i style="width:100%"></i></div>';
+    row.querySelector('.nm').textContent = name;
     party.appendChild(row);
     rows[name] = row;
   });

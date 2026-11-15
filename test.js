@@ -1239,6 +1239,23 @@ test('easy: "Name, 5" switches to tickets; plain lines count 1', function () {
   assertEqual(FairDraw.makeTickets(r.entries).length, 9)
 })
 
+test('easy: malformed ticket counts (1.5, +2, 0x10) are flagged, not turned into names', function () {
+  const r = FairEasy.parseEntries('Bo, 3\nAda, 1.5\nCy, +2\nDee, 0x10\nEve')
+  assertEqual(r.kind, 'tickets')
+  assertEqual(JSON.stringify(r.entries), JSON.stringify([{ holder: 'Bo', entries: 3 }, { holder: 'Eve', entries: 1 }]))
+  assertEqual(JSON.stringify(r.invalid), JSON.stringify(['Ada, 1.5', 'Cy, +2', 'Dee, 0x10']))
+  assert(/whole numbers/.test(FairEasy.rosterError(r)), 'host sees the whole-numbers error')
+})
+
+test('ui: RPG names and overlays never go through innerHTML', function () {
+  const fs = require('fs'), path = require('path')
+  const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8')
+  const fun = fs.readFileSync(path.join(__dirname, 'fun.js'), 'utf8')
+  assert(html.indexOf("name.replace(/[<>&]/g") === -1, 'RPG row no longer strip-escapes into innerHTML')
+  assert(/\.nm'\)\.textContent = name/.test(html), 'RPG name set via textContent')
+  assert(!/function overlay[^\n]*innerHTML/.test(fun), 'overlay() does not use innerHTML')
+})
+
 test('easy: range count, winners clamp, countdown never negative', function () {
   assertEqual(FairEasy.rangeCount(1, 100), 100)
   assertEqual(FairEasy.rangeCount(10, 1), 10)
